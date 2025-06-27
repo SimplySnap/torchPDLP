@@ -1,5 +1,5 @@
 # PDLP-AMD-RIPS
-Repo containing code for an AMD GPU implementation of Primal Dual Linear Programming (PDLP) algorithm. In collaboration with AMD and UCLA Math Dept.
+Repo containing code for an AMD GPU implementation of Primal Dual Linear Programming (PDLP) algorithm. In collaboration with AMD and Institute for Pure and Applied Mathematics @UCLA
 
 This project investigates the acceleration of LP optimization on AMD GPUs using the ROCm platform and HIP to exploit fine-grained parallelism and high memory bandwidth. The core focus is the development of a robust, high-performance, open-source implementa-
 tion of the Restarted Primal-Dual Hybrid Gradient (PDHG) algorithm tailored for general LP problems on AMD hardware. We evaluate its performance on standard LP test sets and real-world dataset. These gains enable near real-time optimization and establish AMD
