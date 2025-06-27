@@ -11,7 +11,8 @@ Our objectives include:
 on NVIDIA hardware [Lu and Yang 2024]
 3. Optimizing for AMD’s ROCm architecture
 4. Testing on real-world data for energy allocation on the power grid
+
 And Time permitting:
-5. Writing a research-grade paper and submit to a journal
-6. Finding more optimizations to improve PDLP algorithm itself, and implement,
+6. Writing a research-grade paper and submit to a journal
+7. Finding more optimizations to improve PDLP algorithm itself, and implement,
 hopefully providing better speedup over commercial solvers
