@@ -1,5 +1,5 @@
 import numpy as np
-import pytorch as torch
+import torch
 
 #Make random 10,000*10,000 matrix
 n = 10000
