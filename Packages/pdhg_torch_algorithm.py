@@ -1,6 +1,3 @@
-import torch
-import numpy as np
-
 def project_lambda_box(grad, is_neg_inf, is_pos_inf):
     """
     Projects the gradient onto the normal cone of the feasible region defined by bounds l and u.
