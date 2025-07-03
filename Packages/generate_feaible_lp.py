@@ -1,7 +1,3 @@
-import numpy as np
-from scipy.sparse import random as sparse_random
-import pulp
-
 def generate_feasible_lp(num_vars=100, num_ineq=200, num_eq=50, density=0.05, mps_filename="generated_lp.mps"):
   """
   Generates large feasible LP problems to test and saves them in the .mps format.
