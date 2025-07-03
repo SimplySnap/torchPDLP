@@ -1,6 +1,3 @@
-import torch
-import numpy as np
-
 def pdhg_solver(mps_file_path, max_iter=10000, tol=1e-4, term_period=1000, verbose=True):
   """
     Full PDHG solver implementation using PyTorch.
