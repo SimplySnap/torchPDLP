@@ -12,39 +12,38 @@ def pdhg_solver(mps_file_path, max_iter=10000, tol=1e-4, term_period=1000, verbo
     Returns:
       The minimizer, objective value, and number of iterations for convergence.
     """
-  with Timer("Elapsed Time"):
-    if __name__ == '__main__':
-    
-        # --- Device Selection ---
-        if torch.cuda.is_available():
-            device = torch.device('cuda')
-            print(f"PyTorch is using ROCm/CUDA device: {torch.cuda.get_device_name(0)}")
-        else:
-            device = torch.device('cpu')
-            print("ROCm/CUDA not available. PyTorch is using CPU.")
-    
-        # --- Parameter Loading ---
-        try:
-              c, G, h, A, b, l, u = mps_to_standard_form_torch(mps_file_path, device=device)
-        except Exception as e:
-            print(f"Failed to load MPS file: {e}")
-            exit(1)
-    
-        is_neg_inf = torch.isinf(l) & (l < 0)
-        is_pos_inf = torch.isinf(u) & (u > 0)
-    
-        l_dual = l.clone()
-        u_dual = u.clone()
-    
-        l_dual[is_neg_inf] = 0
-        u_dual[is_pos_inf] = 0
-    
-        # --- Run PDHG Solver on the GPU or CPU ---
-        minimizer, obj_val, iterations = pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, max_iter=max_iter, tol=tol, device=device, verbose=verbose, term_period=term_period)
+  if __name__ == '__main__':
+  
+      # --- Device Selection ---
+      if torch.cuda.is_available():
+          device = torch.device('cuda')
+          print(f"PyTorch is using ROCm/CUDA device: {torch.cuda.get_device_name(0)}")
+      else:
+          device = torch.device('cpu')
+          print("ROCm/CUDA not available. PyTorch is using CPU.")
+  
+      # --- Parameter Loading ---
+      try:
+            c, G, h, A, b, l, u = mps_to_standard_form_torch(mps_file_path, device=device)
+      except Exception as e:
+          print(f"Failed to load MPS file: {e}")
+          exit(1)
+  
+      is_neg_inf = torch.isinf(l) & (l < 0)
+      is_pos_inf = torch.isinf(u) & (u > 0)
+  
+      l_dual = l.clone()
+      u_dual = u.clone()
+  
+      l_dual[is_neg_inf] = 0
+      u_dual[is_pos_inf] = 0
+  
+      # --- Run PDHG Solver on the GPU or CPU ---
+      minimizer, obj_val, iterations = pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, max_iter=max_iter, tol=tol, device=device, verbose=verbose, term_period=term_period)
 
-        print("Objective Value:", obj_val)
-        print("Iterations:", iterations)
-        print("\nMinimizer (first 10 variables):")
-        print(minimizer[:10].cpu().numpy())
+      print("Objective Value:", obj_val)
+      print("Iterations:", iterations)
+      print("\nMinimizer (first 10 variables):")
+      print(minimizer[:10].cpu().numpy())
 
-        return minimizer, obj_val, iterations
+      return minimizer, obj_val, iterations
