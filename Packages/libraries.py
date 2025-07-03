@@ -1,3 +1,4 @@
+!pip install pulp torch cplex numpy scipy
 import torch
 import numpy as np
 import pulp
