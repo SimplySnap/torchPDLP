@@ -1,5 +1,3 @@
-from time import perf_counter
-
 class Timer:
   """
   Timer class to measure execution time of code blocks.
