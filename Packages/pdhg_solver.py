@@ -46,4 +46,4 @@ def pdhg_solver(mps_file_path, max_iter=10000, tol=1e-4, term_period=1000, verbo
       print("\nMinimizer (first 10 variables):")
       print(minimizer[:10].cpu().numpy())
 
-      return minimizer, obj_val, iterations
+      #return minimizer, obj_val, iterations
