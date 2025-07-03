@@ -9,3 +9,5 @@ To run a script, pull from the cloned directory by
           %run "PDLP-AMD-RIPS/.../script.py"
 
 You can also run from a github codespace notebook without cloning, just remove the PDLP-AMD-RIPS in the file path.
+
+Add any libraires you use to libraries.py
