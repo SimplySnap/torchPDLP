@@ -16,6 +16,7 @@ def project_lambda_box(grad, is_neg_inf, is_pos_inf):
     Returns:
         projected: (n, 1) projected gradient (interpreted as λ)
     """
+    import torch
     projected = torch.zeros_like(grad)
 
     # Case 1: (-inf, +inf) → {0}
@@ -42,6 +43,8 @@ def spectral_norm_estimate_torch(A, num_iters=10):
   Estimates the spectral norm of a matrix A with enough acuracy to use in
   setting the step size of the PDHG algorithm.
   """
+  import torch
+
   b = torch.randn(A.shape[1], 1, device=A.device)
   for _ in range(num_iters):
       b = A.T @ (A @ b)
@@ -69,6 +72,8 @@ def pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, devi
     Returns:
       minimizer, objective value, and number of iterations for convergence
     """
+    import torch
+    
     n = c.shape[0]
     m_ineq = G.shape[0] if G.numel() > 0 else 0
     m_eq = A.shape[0] if A.numel() > 0 else 0
