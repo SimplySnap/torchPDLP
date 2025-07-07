@@ -15,7 +15,7 @@ def pdhg_solver(mps_file_path, max_iter=10000, tol=1e-4, term_period=1000, verbo
     import torch
     import cplex
     from mps_to_standard_form import mps_to_standard_form_torch
-    import pdhg_torch_algorithm
+    from pdhg_torch_algorithm import pdhg_torch
     
     # --- Device Selection ---
     if torch.cuda.is_available():
