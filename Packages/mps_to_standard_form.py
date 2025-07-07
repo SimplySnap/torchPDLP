@@ -1,8 +1,3 @@
-import cplex
-from cplex.exceptions import CplexError
-import torch
-import numpy as np
-
 def mps_to_standard_form_torch(mps_file, device='cpu'):
     """
     Loads an MPS file using CPLEX and converts it into standard form LP in PyTorch:
@@ -18,6 +13,11 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
     Returns as torch tensors: c, G, h, A, b, l, u 
 
     """
+    import cplex
+    from cplex.exceptions import CplexError
+    import torch
+    import numpy as np
+    
     try:
       # Parse .mps file using cplex parser
       cpx = cplex.Cplex(mps_file)
