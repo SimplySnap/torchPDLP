@@ -25,14 +25,13 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
 
       # Number of variables and constriants
       num_vars = cpx.variables.get_num()
-      num_constraints = cpx.linear_constraints.get_num()
-
-      # Upper and lower bounds and replace default max and min bounds with +-inf
+      
+     # Upper and lower bounds, replacing default max/min with infinity
       l = np.array(cpx.variables.get_lower_bounds())
-      l = [x if x > -1.0000e+20 else -float('inf') for x in l]
+      l[l <= -1e+20] = -float('inf')
       u = np.array(cpx.variables.get_upper_bounds())
-      u = [x if x < 1.0000e+20 else float('inf') for x in u]
-
+      u[u >= 1e+20] = float('inf')
+      
       # Objective vector
       c = np.array(cpx.objective.get_linear())
 
@@ -40,25 +39,49 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
       rows = cpx.linear_constraints.get_rows()
       senses = cpx.linear_constraints.get_senses()
       rhs = np.array(cpx.linear_constraints.get_rhs())
-
+      ranges = np.array(cpx.linear_constraints.get_range_values())
+      
       A_rows, G_rows = [], []
       b_eq, h_ineq = [], []
 
-      for row, sense, rhs_i in zip(rows, senses, rhs):
-          row_vec = np.zeros(num_vars)
-          for idx, val in zip(row.ind, row.val):
-              row_vec[idx] = val
+      for i in range(len(rows)):
+            row = rows[i]
+            sense = senses[i]
+            rhs_i = rhs[i]
+            range_val = ranges[i]
 
-          if sense == 'E':
-              A_rows.append(row_vec)
-              b_eq.append(rhs_i)
-          elif sense == 'G':  # ≥
-              G_rows.append(row_vec)
-              h_ineq.append(rhs_i)
-          elif sense == 'L':  # ≤ → -row ≥ -rhs
-              G_rows.append(-row_vec)
-              h_ineq.append(-rhs_i)
+            row_vec = np.zeros(num_vars)
+            for idx, val in zip(row.ind, row.val):
+                row_vec[idx] = val
+            
+            # --- MODIFIED LOGIC: Handle ranged and non-ranged constraints ---
+            if sense == 'R':
+                lb = rhs_i
+                ub = rhs_i + range_val
 
+                if ub < lb:
+                    lb, ub = ub, lb  # swap to ensure lb ≤ ub
+
+                # 1. row ≥ lb
+                G_rows.append(row_vec)
+                h_ineq.append(lb)
+
+                # 2. row ≤ ub --> -row ≥ -ub
+                G_rows.append(-row_vec)
+                h_ineq.append(-ub)
+                
+            else:
+                # No range, handle as a simple constraint
+                if sense == 'E':
+                    A_rows.append(row_vec)
+                    b_eq.append(rhs_i)
+                elif sense == 'G':  # ≥
+                    G_rows.append(row_vec)
+                    h_ineq.append(rhs_i)
+                elif sense == 'L':  # ≤  
+                    G_rows.append(-row_vec)
+                    h_ineq.append(-rhs_i)
+            
       # Convert to numpy arrays for faster conversion to tensors
       A_rows = np.array(A_rows)
       b_eq = np.array(b_eq)
