@@ -192,7 +192,8 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
                 bound_data[var_name]['lo'] = val
                 bound_data[var_name]['up'] = val
             elif bound_type == 'FR':
-                bound_data[var_name]['lo'] = -float('inf')
+                # bound_data[var_name]['lo'] = -float('inf')
+                bound_data[var_name]['lo'] = 0.0
                 bound_data[var_name]['up'] = float('inf')
                 
     # Check correct information loaded
@@ -269,7 +270,8 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
     l = []
     u = []
     for var in var_names:
-        lo = bound_data[var].get('lo', -float('inf'))
+        # lo = bound_data[var].get('lo', -float('inf'))
+        lo = bound_data[var].get('lo', 0)
         up = bound_data[var].get('up', float('inf'))
         l.append(lo)
         u.append(up)
