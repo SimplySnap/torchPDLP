@@ -118,7 +118,8 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
     import torch
     import numpy as np
     from collections import defaultdict
-
+    
+    #Read MPS file
     with open(mps_file, 'r') as f:
         lines = [line.strip() for line in f if line.strip() and not line.startswith('*')]
 
@@ -194,8 +195,9 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
                 bound_data[var_name]['lo'] = -float('inf')
                 bound_data[var_name]['up'] = float('inf')
                 
-    # Debug: Correct Information
+    # Check correct information loaded
     # print(row_types, col_data,rhs_data,range_data,bound_data)
+    
     # Final variable ordering and index mapping
     var_names = sorted(var_names)
     var_index = {v: i for i, v in enumerate(var_names)}
