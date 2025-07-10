@@ -94,10 +94,10 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
       u_tensor = torch.tensor(u, dtype=torch.float32, device=device).view(-1, 1)
 
       A_tensor = torch.tensor(A_rows, dtype=torch.float32, device=device) if A_rows.any() else torch.zeros((0, num_vars), device=device)
-      b_tensor = torch.tensor(b_eq, dtype=torch.float32, device=device).view(-1, 1) if b_eq.any() else torch.zeros((0, 1), device=device)
+      b_tensor = torch.tensor(b_eq, dtype=torch.float32, device=device).view(-1, 1)
 
       G_tensor = torch.tensor(G_rows, dtype=torch.float32, device=device) if G_rows.any() else torch.zeros((0, num_vars), device=device)
-      h_tensor = torch.tensor(h_ineq, dtype=torch.float32, device=device).view(-1, 1) if h_ineq.any() else torch.zeros((0, 1), device=device)
+      h_tensor = torch.tensor(h_ineq, dtype=torch.float32, device=device).view(-1, 1)
 
       return c_tensor, G_tensor, h_tensor, A_tensor, b_tensor, l_tensor, u_tensor
 
