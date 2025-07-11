@@ -286,7 +286,7 @@ def pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, devi
     eta = 0.9 / spectral_norm_estimate_torch(K, num_iters=100)
 
     if q_norm > 0 and c_norm > 0:
-        omega = torch.tensor(c_norm / q_norm)
+        omega = c_norm / q_norm
     else:
         omega = torch.tensor(1.0)
 
