@@ -225,6 +225,7 @@ def project_lambda_box(grad, is_neg_inf, is_pos_inf):
 
     return projected
 
+
 def spectral_norm_estimate_torch(A, num_iters=10):
   """
   Estimates the spectral norm of a matrix A with enough acuracy to use in
@@ -236,69 +237,6 @@ def spectral_norm_estimate_torch(A, num_iters=10):
       b = A.T @ (A @ b)
       b /= torch.norm(b)
   return torch.norm(A @ b)
-
-def ruiz_precondition_torch(K, c, q, l, u, device='cpu', max_iter=50, eps=1e-6):
-    """
-    Applies Ruiz scaling preconditioning to linear programming problem matrices using PyTorch.
-    All inputs and outputs are PyTorch tensors on the specified device.
-
-    Args:
-        K: Combined constraint matrix (m x n) as torch tensor
-        c: Objective vector (n x 1) as torch tensor or None
-        q: RHS vector (m x 1) as torch tensor or None
-        l: Lower bounds (n x 1) as torch tensor or None
-        u: Upper bounds (n x 1) as torch tensor or None
-        device: torch device ('cpu' or 'cuda')
-        max_iter: Max number of Ruiz scaling iterations
-        eps: Threshold for small norm handling
-
-    Returns:
-        Scaled versions of (K, c, q, l, u) and the row/col scaling factors D1, D2
-    """
-
-    K_scaled = K.clone().to(device)
-    c_tensor = c.clone().to(device) if c is not None else None
-    q_tensor = q.clone().to(device) if q is not None else None
-    h_tensor = h.clone().to(device) if h is not None else None
-    l_tensor = l.clone().to(device) if l is not None else None
-    u_tensor = u.clone().to(device) if u is not None else None
-
-    m, n = K_scaled.shape
-
-    D1 = torch.ones((m, 1), dtype=K.dtype, device=device)  # row scaling
-    D2 = torch.ones((n, 1), dtype=K.dtype, device=device)  # column scaling
-
-    for _ in range(max_iter):
-        # Row scaling
-        row_norms = torch.max(torch.abs(K_scaled), dim=1).values.view(-1, 1)
-        row_norms = torch.where(row_norms < eps, torch.ones_like(row_norms), row_norms)
-        row_scale = torch.sqrt(row_norms)
-        D1 /= row_scale
-        K_scaled = K_scaled / row_scale
-
-        # Column scaling
-        col_norms = torch.max(torch.abs(K_scaled), dim=0).values.view(1, -1)
-        col_norms = torch.where(col_norms < eps, torch.ones_like(col_norms), col_norms)
-        col_scale = torch.sqrt(col_norms)
-        D2 /= col_scale.T
-        K_scaled = K_scaled / col_scale
-
-        # Convergence check
-        row_max = torch.max(torch.abs(K_scaled), dim=1).values
-        col_max = torch.max(torch.abs(K_scaled), dim=0).values
-        if torch.max(torch.abs(1 - row_max)) < 0.1 and torch.max(torch.abs(1 - col_max)) < 0.1:
-            break
-
-    # Apply scaling to c, l, u
-    c_tilde = c_tensor * D2 if c_tensor is not None else None
-    l_tilde = l_tensor / D2 if l_tensor is not None else None
-    u_tilde = u_tensor / D2 if u_tensor is not None else None
-
-    # Apply scaling to h and b
-    q_tilde = q_tensor * D1 if q_tensor is not None else None
-
-    return K_scaled, c_tilde, q_tilde, l_tilde, u_tilde, D2
-
 
 def pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, device, max_iter=100000, tol=1e-2, verbose=True, term_period=1000):
     """
@@ -320,8 +258,7 @@ def pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, devi
 
     Returns:
       minimizer, objective value, and number of iterations for convergence
-    """
-
+    """    
     n = c.shape[0]
     m_ineq = G.shape[0] if G.numel() > 0 else 0
     m_eq = A.shape[0] if A.numel() > 0 else 0
@@ -342,15 +279,10 @@ def pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, devi
     K = torch.vstack(combined_matrix_list).to(device)           # Combined constraint matrix
     q = torch.vstack(rhs).to(device)                            # Combined right-hand side
     c = c.to(device)
-
-    q_orig_norm = torch.linalg.norm(q, 2)
-    c_orig_norm = torch.linalg.norm(c, 2)
-
-    K, c, q, l, u, D2 = ruiz_precondition_torch(K, c, q, l, u, device)
-
+  
     q_norm = torch.linalg.norm(q, 2)
     c_norm = torch.linalg.norm(c, 2)
-
+  
     eta = 0.9 / spectral_norm_estimate_torch(K, num_iters=100)
 
     if q_norm > 0 and c_norm > 0:
@@ -387,43 +319,46 @@ def pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, devi
         if m_ineq > 0:
             y[:m_ineq] = torch.clamp(y[:m_ineq], min=0.0)
 
-        # --- Check Termination Every term_period Iterations ---
+         # --- Check Termination Every term_period Iterations on GPU---
         if k % term_period == 0:
-            # Primal and dual objective
-            prim_obj = (c.T @ x)[0][0]
-            dual_obj = (q.T @ y)[0][0]
+            # --- Calculate all residuals and gaps as GPU tensors ---
+            prim_obj = c.T @ x
+            dual_obj = q.T @ y
 
-            # Lagrange multipliers from box projection
             lam = project_lambda_box(grad, is_neg_inf, is_pos_inf)
-            lam_pos = (l_dual.T @ torch.clamp(lam, min=0.0))[0][0]
-            lam_neg = (u_dual.T @ torch.clamp(lam, max=0.0))[0][0]
+            lam_pos = l_dual.T @ torch.clamp(lam, min=0.0)
+            lam_neg = u_dual.T @ torch.clamp(lam, max=0.0)
 
             adjusted_dual = dual_obj + lam_pos + lam_neg
-            duality_gap = abs(adjusted_dual - prim_obj)
+            duality_gap = torch.abs(adjusted_dual - prim_obj)
 
-            x_original = x * D2
+            residual_eq = A @ x - b if m_eq > 0 else torch.tensor(0.0, device=device)
+            residual_ineq = torch.clamp(h - G @ x, min=0.0) if m_ineq > 0 else torch.tensor(0.0, device=device)
+            
+            primal_residual_vec = torch.vstack([residual_eq, residual_ineq]) if m_eq > 0 or m_ineq > 0 else torch.tensor(0.0, device=device)
+            primal_residual = torch.norm(primal_residual_vec, p=2)
+            
+            dual_residual = torch.norm(grad - lam, p=2)
 
-            # Primal residual (feasibility)
-            residual_eq = A @ x_original - b if m_eq > 0 else torch.zeros(1, device=device)
-            residual_ineq = torch.clamp(h - G @ x_original, min=0.0) if m_ineq > 0 else torch.zeros(1, device=device)
-            primal_residual = torch.norm(torch.vstack([residual_eq, residual_ineq]), p=2).item()
+            # --- Check convergence condition on GPU ---
+            cond1 = primal_residual <= tol * (1 + q_norm)
+            cond2 = dual_residual <= tol * (1 + c_norm)
+            cond3 = duality_gap <= tol * (1 + torch.abs(prim_obj) + torch.abs(adjusted_dual))
+            
+            converged = cond1 & cond2 & cond3
 
-            # Dual residual (change in x)
-            dual_residual = torch.norm(grad - lam, p=2).item()
-
+            # --- Optional Verbose Logging (this part transfers data for printing) ---
             if verbose:
-                print(f"[{k}] Primal Obj: {prim_obj:.4f}, Adjusted Dual Obj: {adjusted_dual:.4f}, "
-                      f"Gap: {duality_gap:.2e}, Prim Res: {primal_residual:.2e}, Dual Res: {dual_residual:.2e}")
+                print(f"[{k}] Primal Obj: {prim_obj.item():.4f}, Adjusted Dual Obj: {adjusted_dual.item():.4f}, "
+                      f"Gap: {duality_gap.item():.2e}, Prim Res: {primal_residual.item():.2e}, Dual Res: {dual_residual.item():.2e}")
 
-            # Termination condition
-            if (primal_residual <= tol * (1 + q_orig_norm) and
-                dual_residual <= tol * (1 + c_orig_norm) and
-                duality_gap <= tol * (1 + abs(prim_obj) + abs(adjusted_dual))):
+            # --- Check for termination (1 boolean transfer from GPU to CPU) ---
+            if converged.item():
                 if verbose:
                     print(f"Converged at iteration {k}")
                 break
             
-    return x * D2, k
+    return x, prim_obj.item(), k
 
 class Timer:
   """
@@ -458,11 +393,17 @@ if __name__ == '__main__':
         device = torch.device('cpu')
         print("ROCm/CUDA not available. PyTorch is using CPU.")
 
+    # --- Configuration ---
+    mps_folder_path = 'feasible'
+    max_iter = 100000
+    tol = 1e-2
+    results = []
+
     num_threads = torch.get_num_threads()
     print(f"PyTorch is running on {num_threads} threads.")
 
     # --- Configuration ---
-    mps_folder_path = 'feasible'
+    mps_folder_path = 'feasibleT'
     max_iter = 100000
     tol = 1e-2
     results = []
@@ -499,10 +440,9 @@ if __name__ == '__main__':
         # --- Solve ---
         try:
             with Timer("Solve time") as t:
-                x, k = pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf,
+                x, obj, k = pdhg_torch(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf,
                                        l_dual, u_dual, device=device,
                                        max_iter=max_iter, tol=tol, verbose=False)
-                obj = (c.T @ x).item()
             time_elapsed = t.elapsed
 
             status = "Solved"
@@ -531,5 +471,5 @@ if __name__ == '__main__':
 
     # --- Save results to Excel ---
     df = pd.DataFrame(results)
-    df.to_excel('precond_results_gpu.xlsx', index=False)
-    print("\nAll done. Results saved to precond_results_gpu.xlsx.")
+    df.to_excel('pdhg_results_gpu.xlsx', index=False)
+    print("\nAll done. Results saved to pdhg_results_gpu.xlsx.")
