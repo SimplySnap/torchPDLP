@@ -113,7 +113,7 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
                      A x = b
                      l ≤ x ≤ u
 
-    Returns: c, G, h, A, b, l, u
+    Returns: c, G, h, A, b, l, u, and a list of the names of the variables
     """
     import torch
     import numpy as np
@@ -272,5 +272,5 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
     l_tensor = torch.tensor(l, dtype=torch.float32, device=device).view(-1, 1)
     u_tensor = torch.tensor(u, dtype=torch.float32, device=device).view(-1, 1)
 
-    return c_tensor, G_tensor, h_tensor, A_tensor, b_tensor, l_tensor, u_tensor
+    return c_tensor, G_tensor, h_tensor, A_tensor, b_tensor, l_tensor, u_tensor, var_names
 
