@@ -1,10 +1,10 @@
-def presolve(input_file, reduced_file, postsolve_data, verbose=False):
+def presolve(original_file, reduced_file, postsolve_data, verbose=False):
   '''
   Takes an input mps file, presolves it using the papilo algorithm, and outputs
   a reduced mps file and the data that will be needed to postsolve the solution.
 
   Args:
-    input_file: path to the original mps file
+    original_file: path to the original mps file
     reduced_file: path to output the reduced mps file
     postsolve_data: path to output the data file for postsolve
 
@@ -17,7 +17,7 @@ def presolve(input_file, reduced_file, postsolve_data, verbose=False):
       # Construct the command to run Papilo's presolve command
       command = [
           "papilo", "presolve",         # The executable name (now in PATH)
-          "-f", input_file,
+          "-f", original_file,
           "-r", reduced_file,
           "-v", postsolve_data
       ]
@@ -35,6 +35,8 @@ def presolve(input_file, reduced_file, postsolve_data, verbose=False):
       print(f"Error running Papilo: {e}")
       print("Stdout:", e.stdout)
       print("Stderr:", e.stderr)
+  except Exception as e:
+      print(f"An unexpected error occurred: {e}")
   except Exception as e:
       print(f"An unexpected error occurred: {e}")
 
