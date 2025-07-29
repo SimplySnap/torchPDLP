@@ -113,7 +113,7 @@ def mps_to_standard_form_torch(mps_file, device='cpu'):
                      A x = b
                      l ≤ x ≤ u
 
-    Returns: c, G, h, A, b, l, u, and a list of the names of the variables
+    Returns: c, G, h, A, b, l, u
     """
     import torch
     import numpy as np
