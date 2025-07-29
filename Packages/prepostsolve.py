@@ -46,8 +46,8 @@ def postsolve(minimizer, postsolve_data, reduced_mps, output_path="postsolve_sol
     Postsolves the minimizer solution
 
     Args:
-      minimizer: torch tensor solution to reduced LP
-      postsolve_data: path to output the data file for postsolve
+      minimizer: torch tensor minimizer solution to the reduced LP
+      postsolve_data: path to postsolve data from presolve
       reduced_mps: the mps file containing the presolved LP
       output_path: path to output the postsolve solution
 
