@@ -23,3 +23,5 @@ Once this is done, running
 shows all the commands that can be run but the main one is presolve run by
     papilo presolve -f problem.mps -r reduced.mps -v reduced.postsolve
 where problem.mps is the path to the origninal LP, reduced.mps is the path to output the presolved LP, and reduces.postsolve is the path to output the postsolving data.
+
+You can also import the presolve function from prepostsolve.py and it will work with python to do presolving through subprocess.
