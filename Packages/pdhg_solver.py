@@ -27,7 +27,7 @@ def pdhg_solver(mps_file_path, max_iter=10000, tol=1e-4, term_period=1000, verbo
 
     # --- Parameter Loading ---
     try:
-          c, G, h, A, b, l, u = mps_to_standard_form_torch(mps_file_path, device=device)
+          c, G, h, A, b, l, u, var_names = mps_to_standard_form_torch(mps_file_path, device=device)
     except Exception as e:
         print(f"Failed to load MPS file: {e}")
         exit(1)
