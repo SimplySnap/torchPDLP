@@ -1,29 +1,9 @@
 import torch
 from primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg
+from helpers import project_lambda_box, spectral_norm_estimate_torch, KKT_error
 
-def restarted_pdhg(c, G, h, A, b, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40):
-    
-    n = c.shape[0]
-    m_ineq = G.shape[0] if G.numel() > 0 else 0
-    m_eq = A.shape[0] if A.numel() > 0 else 0
+def restarted_pdhg(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40):
 
-    # Combine constraints
-    combined_matrix_list = []
-    rhs = []
-    if m_ineq > 0:
-        combined_matrix_list.append(G)
-        rhs.append(h)
-    if m_eq > 0:
-        combined_matrix_list.append(A)
-        rhs.append(b)
-
-    if not combined_matrix_list:
-        raise ValueError("Both G and A matrices are empty.")
-  
-    K = torch.vstack(combined_matrix_list).to(device)           # Combined constraint matrix
-    q = torch.vstack(rhs).to(device)                            # Combined right-hand side
-    c = c.to(device)
-  
     q_norm = torch.linalg.norm(q, 2)
     c_norm = torch.linalg.norm(c, 2)
     
