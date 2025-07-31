@@ -22,7 +22,7 @@ def one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta):
   return x, y
 
 
-def restarted_pdhg(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, device, max_iter=1000, tol=1e-4, verbose=True, restart_period=40):
+def restarted_pdhg(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40):
     """
     Solves:
         min cᵀx s.t. Gx ≥ h, Ax = b, l ≤ x ≤ u
@@ -120,7 +120,7 @@ def restarted_pdhg(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, 
     KKT_first = 0 # The actual KKT error of the very first point doesn't matter since the artificial criteria will always hit anyway
   
     # -------------- Outer Loop --------------
-    while True:
+    while k < max_iter:
       t = 0 # Initialize inner iteration counter
 
       # Initialize/Reset sums for averaging
@@ -128,7 +128,7 @@ def restarted_pdhg(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, 
       y_eta_total = torch.zeros_like(y)
       eta_total = 0
       # --------- Inner Loop ---------
-      while True:
+      while k < max_iter:
         x_old = x.clone()
         y_old = y.clone()
         x, y = one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta)
