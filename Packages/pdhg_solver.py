@@ -51,7 +51,7 @@ def pdhg_solver(mps_file_path, max_iter=10000, tol=1e-4, term_period=1000, verbo
 
     return minimizer, obj_val, iterations
 
-def restarted_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True):
+def restarted_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_iter=100_000):
     """
     Full Restarted PDHG solver implementation using PyTorch.
 
@@ -78,7 +78,7 @@ def restarted_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True):
 
     # --- Parameter Loading ---
     try:
-          c, G, h, A, b, l, u = mps_to_standard_form_torch("/content/PDLP-AMD-RIPS/datasets/well_conditioned.mps", device=device)
+          c, G, h, A, b, l, u = mps_to_standard_form_torch(mps_file_path, device=device)
     except Exception as e:
         print(f"Failed to load MPS file: {e}")
         exit(1)
@@ -93,7 +93,7 @@ def restarted_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True):
     u_dual[is_pos_inf] = 0
 
     # --- Run PDHG Solver on the GPU or CPU ---
-    minimizer, objective_value, total_iterations, total_restarts = restarted_pdhg(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, device, tol=tol, verbose=verbose, restart_period=restart_period)
+    minimizer, objective_value, total_iterations, total_restarts = restarted_pdhg(c, G, h, A, b, l, u, is_neg_inf, is_pos_inf, l_dual, u_dual, device, tol=tol, verbose=verbose, restart_period=restart_period, max_iter=max_iter)
 
     if verbose:
       print("Objective Value:", objective_value)
