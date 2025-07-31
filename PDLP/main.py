@@ -1,6 +1,7 @@
 import argparse
 import torch
 import os
+from util import mps_to_standard_form
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
@@ -35,6 +36,27 @@ if __name__ == '__main__':
     mps_folder_path = args.instance_path
     tol = args.tolerance
     output_path = args.output_path
+    results = []
+    
+    # --- Get all MPS files from the folder ---
+    mps_files = sorted([f for f in os.listdir(mps_folder_path) if f.endswith('.mps')])
+
+    for mps_file in mps_files:
+        mps_file_path = os.path.join(mps_folder_path, mps_file)
+        print(f"\nProcessing {mps_file_path}...")
+        try:
+            # --- Load problem ---
+            c, G, h, A, b, l, u = mps_to_standard_form(mps_file_path, device=device)
+        except Exception as e:
+            print(f"Failed to load MPS file: {mps_file_path}. Error: {e}")
+            results.append({
+                'File': mps_file,
+                'Objective': 'N/A',
+                'Iterations (k)': 'N/A',
+                'Time (s)': 'N/A',
+                'Status': f'Failed to load: {e}'
+            })
+            continue  
 
     # Create output directory if it doesn't exist
     os.makedirs(output_path, exist_ok=True)

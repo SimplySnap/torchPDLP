@@ -2,7 +2,7 @@ import torch
 import numpy as np
 from collections import defaultdict
 
-def mps_to_standard_form_torch(mps_file, device='cpu'):
+def mps_to_standard_form(mps_file, device='cpu'):
     """
     Parses an MPS file and returns the standard form LP components as PyTorch tensors:
         minimize     cᵀx
