@@ -2,7 +2,7 @@ import argparse
 import torch
 import os
 from util import mps_to_standard_form, Timer
-from pre_post_primal_dual_hyrid_gradient import ruiz_precondition
+from enhancements import ruiz_precondition
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
