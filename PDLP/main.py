@@ -1,7 +1,8 @@
 import argparse
 import torch
 import os
-from util import mps_to_standard_form
+from util import mps_to_standard_form, Timer
+from pre_post_primal_dual_hyrid_gradient import ruiz_precondition
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
@@ -56,7 +57,17 @@ if __name__ == '__main__':
                 'Time (s)': 'N/A',
                 'Status': f'Failed to load: {e}'
             })
-            continue  
+            continue
+        
+        try:
+            with Timer("Solve time") as t:
+                # PRECONDITION: Perform scaling entirely on GPU
+                K_s, c_s, q_s, l_s, u_s, D_col, m_ineq = ruiz_precondition(c, G, h, A, b, l, u, device = device)
+                
+            time_elapsed = t.elapsed
+            print(f"Preconditioning took {time_elapsed:.4f} seconds.")
+        except Exception as e:
+            print(f"Solver failed for {mps_file}. Error: {e}")
 
     # Create output directory if it doesn't exist
     os.makedirs(output_path, exist_ok=True)
