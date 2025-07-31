@@ -82,4 +82,4 @@ def ruiz_precondition(c, G, h, A, b, l, u, device='cpu', max_iter=20, eps=1e-6):
     l_s /= D_col
     u_s /= D_col
 
-    return K_s, c_s, q_s, l_s, u_s, D_col, m_ineq
+    return K_s, m_ineq, c_s, q_s, l_s, u_s, D_col

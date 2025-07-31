@@ -61,8 +61,8 @@ if __name__ == '__main__':
         
         try:
             with Timer("Solve time") as t:
-                # PRECONDITION: Perform scaling entirely on GPU
-                K_s, c_s, q_s, l_s, u_s, D_col, m_ineq = ruiz_precondition(c, G, h, A, b, l, u, device = device)
+                # PRECONDITION
+                K_s, m_ineq, c_s, q_s, l_s, u_s, D_col = ruiz_precondition(c, G, h, A, b, l, u, device = device)
                 
             time_elapsed = t.elapsed
             print(f"Preconditioning took {time_elapsed:.4f} seconds.")
