@@ -93,7 +93,7 @@ def compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_
     # Dual residual (change in x)
     dual_residual = torch.norm(grad - lam, p=2).flatten()
     
-    return primal_residual, dual_residual, duality_gap
+    return primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual
     
 def KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device):
       """
@@ -101,8 +101,28 @@ def KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_du
       """
       omega_sqrd = omega ** 2
       # Compute primal and dual residuals, and duality gap
-      primal_residual, dual_residual, duality_gap = compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
+      primal_residual, dual_residual, duality_gap, _ , _ = compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
       # Compute the error
       KKT = torch.sqrt(omega_sqrd * primal_residual ** 2 + (dual_residual ** 2) / omega_sqrd + duality_gap ** 2)
 
       return KKT
+  
+def check_termination(primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual, q_norm, c_norm, tol):
+    """
+    Checks the termination conditions for the PDHG algorithm.
+    Args:
+        primal_residual (torch.Tensor): Norm of the primal residual.
+        dual_residual (torch.Tensor): Norm of the dual residual.
+        duality_gap (torch.Tensor): Duality gap.
+        prim_obj (torch.Tensor): Primal objective value.
+        adjusted_dual (torch.Tensor): Adjusted dual objective value.
+        q_norm (float): Norm of the right-hand side vector q.
+        c_norm (float): Norm of the coefficients vector c.
+        tol (float): Tolerance for stopping criterion.
+    Returns:
+        bool: True if termination conditions are met, False otherwise.
+    """
+    cond1 = primal_residual <= tol * (1 + q_norm) 
+    cond2 = dual_residual <= tol * (1 + c_norm)
+    cond3 = duality_gap <= tol * (1 + abs(prim_obj) + abs(adjusted_dual))
+    return cond1 and cond2 and cond3

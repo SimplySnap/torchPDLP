@@ -1,8 +1,8 @@
 import torch
 from primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg
-from helpers import project_lambda_box, spectral_norm_estimate_torch, KKT_error
+from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_and_duality_gap, check_termination
 
-def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, primal_update=False, adaptive_step=False, preconditioning=False):
+def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, primal_update=False):
     
     is_neg_inf = torch.isinf(l) & (l < 0)
     is_pos_inf = torch.isinf(u) & (u > 0)
@@ -24,7 +24,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1
     beta = [0.2, 0.8, 0.36]
 
     # Initialize primal and dual
-    x = torch.zeros((n, 1), device=device)
+    x = torch.zeros((c.shape[0], 1), device=device)
     y = torch.zeros((K.shape[0], 1), device=device)
 
     # Counters
@@ -34,7 +34,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1
 
     # Initialize Previous KKT Error
     KKT_first = 0 # The actual KKT error of the very first point doesn't matter since the artificial criteria will always hit anyway
-
+    
     # -------------- Outer Loop --------------
     while k < max_iter:
       t = 0 # Initialize inner iteration counter
@@ -53,8 +53,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1
         y_previous = y.clone()
 
         # Regular or Adaptive step of pdhg
-        x, y, eta, eta_next, j = adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j)
-
+        x, y, eta, eta_hat, j = adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j)
         # Increase iteration counters
         k += 1
         t += 1
@@ -63,6 +62,9 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1
         x_eta_total += eta * x
         y_eta_total += eta * y
         eta_total += eta
+        
+        # Update eta
+        eta = eta_hat
 
         # Check Restart Criteria Every restart_period iterations
         if t % restart_period == 0:
@@ -71,7 +73,6 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1
           y_avg = y_eta_total / eta_total
 
           # Compute KKT errors
-          omega_sqrd = omega ** 2
           KKT_current = KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device)
           KKT_average = KKT_error(x_avg, y_avg, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device)
 
@@ -105,30 +106,9 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1
 
       KKT_first = KKT_error(x, y, omega) # Update KKT_first for next iteration (incase primal weight updates)
       j += 1 # Add one kkt pass
-
-      # Check Termination Criteria Every Restart
-
-      # Primal and dual objective
-      grad = c - K.T @ y
-      prim_obj = (c.T @ x).flatten()
-      dual_obj = (q.T @ y).flatten()
-
-      # Lagrange multipliers from box projection
-      lam = project_lambda_box(grad, is_neg_inf, is_pos_inf)
-      lam_pos = (l_dual.T @ torch.clamp(lam, min=0.0)).flatten()
-      lam_neg = (u_dual.T @ torch.clamp(lam, max=0.0)).flatten()
-
-      # Duality Gap (optimality)
-      adjusted_dual = dual_obj + lam_pos + lam_neg
-      duality_gap = abs(adjusted_dual - prim_obj)
-
-      # Primal residual (feasibility)
-      residual_eq = A @ x - b if m_eq > 0 else torch.zeros(1, device=device)
-      residual_ineq = torch.clamp(h - G @ x, min=0.0) if m_ineq > 0 else torch.zeros(1, device=device)
-      primal_residual = torch.norm(torch.vstack([residual_eq, residual_ineq]), p=2).flatten()
-
-      # Dual residual (feasibility)
-      dual_residual = torch.norm(grad - lam, p=2).flatten()
+      
+      # Compute primal and dual residuals, and duality gap
+      primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
 
       # Add one kkt pass
       j += 1
@@ -139,9 +119,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, D_col, device, max_iter=100_000, tol=1
           print("")
 
       # Termination conditions
-      if (primal_residual <= tol * (1 + q_norm) and
-          dual_residual <= tol * (1 + c_norm) and
-          duality_gap <= tol * (1 + abs(prim_obj) + abs(adjusted_dual))):
+      if check_termination(primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual, q_norm, c_norm, tol):
           if verbose:
               print(f"Converged at iteration {k} restart loop {n}")
           break

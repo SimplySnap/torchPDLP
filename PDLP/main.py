@@ -3,6 +3,7 @@ import torch
 import os
 from util import mps_to_standard_form, Timer
 from enhancements import ruiz_precondition
+from primal_dual_hybrif_gradient import pdlp_algorithm
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
@@ -63,9 +64,16 @@ if __name__ == '__main__':
             with Timer("Solve time") as t:
                 # PRECONDITION
                 K_s, m_ineq, c_s, q_s, l_s, u_s, D_col = ruiz_precondition(c, G, h, A, b, l, u, device = device)
+                x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=False)
+                
+                # POSTPROCESSING
+                x_final = x * D_col
+                obj_final = (c.T @ x_final).item()
+                
+                print(f"Objective value: {obj_final:.4f}")
                 
             time_elapsed = t.elapsed
-            print(f"Preconditioning took {time_elapsed:.4f} seconds.")
+            print(f"Took {time_elapsed:.4f} seconds.")
         except Exception as e:
             print(f"Solver failed for {mps_file}. Error: {e}")
 
