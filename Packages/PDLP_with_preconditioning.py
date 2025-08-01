@@ -1,3 +1,104 @@
+def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
+    """
+    Performs Ruiz equilibration (scaling) on the standard-form linear program using GPU tensors.
+
+    This is done to improve the numerical stability of iterative solvers, especially for
+    ill-conditioned problems.
+
+    Standard form of the LP:
+        minimize     cᵀx
+        subject to   Gx ≥ h
+                     Ax = b
+                     l ≤ x ≤ u
+
+    Inputs:
+    -------
+    c  : (n x 1) torch tensor — objective function vector
+    K  : ((m_ineq + m_eq) x n) torch tensor — constraint matrix (stacked G and A)
+    q  : ((m_ineq + m_eq) x 1) torch tensor — RHS vector (stacked h and b)
+    l  : (n x 1) torch tensor — lower bounds on variables
+    u  : (n x 1) torch tensor — upper bounds on variables
+    max_iter : int — number of scaling iterations to perform (default: 20)
+
+    Outputs:
+    --------
+    K_s : ((m_ineq + m_eq) x n) torch tensor — scaled constraint matrix (stacked G and A)
+    c_s : (n x 1) torch tensor — scaled objective vector
+    q_s : ((m_ineq + m_eq) x 1) torch tensor — scaled RHS vector (stacked h and b)
+    l_s : (n x 1) torch tensor — scaled lower bounds
+    u_s : (n x 1) torch tensor — scaled upper bounds
+    D_col : (n x 1) torch tensor — final column scaling factors (for rescaling solution)
+    m_ineq : int — number of inequality constraints (used for slicing G vs A in K_s if needed)
+
+    Notes:
+    ------
+    - This works whether K is sparse or dense and outputs K_s in the same format
+    - The scaling preserves feasibility and optimality but improves numerical conditioning.
+    - You must rescale your solution after solving using D_col (and D_row if needed).
+    """
+   
+    is_sparse = K.is_sparse
+
+    # Clone inputs
+    K_s = K.clone()
+    c_s, q_s, l_s, u_s = c.clone(), q.clone(), l.clone(), u.clone()
+    m, n = K_s.shape
+
+    D_row = torch.ones((m, 1), dtype=K.dtype, device=device)
+    D_col = torch.ones((n, 1), dtype=K.dtype, device=device)
+
+    for _ in range(max_iter):
+        # --- Row norm ---
+        if is_sparse:
+            row_indices = K_s.indices()[0]
+            abs_vals = K_s.values().abs()
+            row_max = torch.zeros(m, device=device)
+            row_max.scatter_reduce_(0, row_indices, abs_vals, reduce="amax", include_self=True)
+            row_norms = torch.sqrt(torch.clamp(row_max, min=eps)).view(-1, 1)
+
+            # Update sparse values
+            new_vals = K_s.values() / row_norms[row_indices, 0]
+            K_s = torch.sparse_coo_tensor(K_s.indices(), new_vals, K_s.shape, device=K_s.device)
+
+        else:
+            row_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=1, keepdim=True))
+            row_norms = torch.clamp(row_norms, min=eps)
+            K_s = K_s / row_norms
+
+        D_row = D_row / row_norms
+
+        # --- Column norm ---
+        if is_sparse:
+            col_indices = K_s.indices()[1]
+            abs_vals = K_s.values().abs()
+            col_max = torch.zeros(n, device=device)
+            col_max.scatter_reduce_(0, col_indices, abs_vals, reduce="amax", include_self=True)
+            col_norms = torch.sqrt(torch.clamp(col_max, min=eps)).view(1, -1)
+
+            # Update sparse values
+            new_vals = K_s.values() / col_norms[0, col_indices]
+            K_s = torch.sparse_coo_tensor(K_s.indices(), new_vals, K_s.shape, device=K_s.device)
+
+        else:
+            col_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=0, keepdim=True))
+            col_norms = torch.clamp(col_norms, min=eps)
+            K_s = K_s / col_norms
+
+        D_col = D_col / col_norms.T
+
+        # --- Convergence check ---
+        if torch.max(torch.abs(1 - row_norms)) < eps and torch.max(torch.abs(1 - col_norms)) < eps:
+            break
+
+    # --- Scale other vectors ---
+    c_s = c_s * D_col
+    q_s = q_s * D_row
+    l_s = l_s / D_col
+    u_s = u_s / D_col
+
+    return c_s, K_s, q_s, l_s, u_s, D_col, D_row
+
+
 def sparse_vs_dense(A, device='cpu', kkt_passes=10):
     """
     Benchmarks matrix-vector multiplication using dense and sparse formats.
@@ -485,7 +586,7 @@ def mps_to_standard_form(mps_file, device='cpu', verbose=True):
     
     return c_tensor, K_tensor, q_tensor, m_ineq, l_tensor, u_tensor
 
-def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, primal_update=False, adaptive_step=False):
+def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive_step=False):
     
     import torch
     #from primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg, fixed_one_step_pdhg
@@ -499,9 +600,24 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
     u_dual = u.clone()
     l_dual[is_neg_inf] = 0
     u_dual[is_pos_inf] = 0
+
+    # -------------------- Preconditioning --------------------  
+    
+    # Save unconditioned tensors for terminiation checks
+    c_og, K_og, q_og, l_og, u_og = c.clone(), K.clone(), q.clone(), l.clone(), u.clone
+    if precondition: 
+        # Precondition tensors and output D_col and D_row to uncondition the primal and dual for termination checks
+        c, K, q, l, u, D_col, D_row = ruiz_precondition(c, K, q, l, u, device=device, max_iter=20, eps=1e-6)
+    else:
+        D_row = torch.ones((K.shape[0], 1), dtype=K.dtype, device=device)
+        D_col = torch.ones((K.shape[1], 1), dtype=K.dtype, device=device)
+
+    # ------------------- End Preconditioning ------------------
         
     q_norm = torch.linalg.norm(q, 2)
     c_norm = torch.linalg.norm(c, 2)
+    q_norm_og = torch.linalg.norm(q_og, 2)
+    c_norm_og = torch.linalg.norm(c_og, 2)
 
     eta = 0.9 / spectral_norm_estimate_torch(K, num_iters=100)
     omega = c_norm / q_norm if q_norm > 1e-6 and c_norm > 1e-6 else torch.tensor(1.0, device=device)
@@ -595,27 +711,27 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         KKT_first = KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device) # Update KKT_first for next iteration (incase primal weight updates)
         j += 1 # Add one kkt pass
       
-        # Compute primal and dual residuals, and duality gap
-        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
+        # Compute primal and dual residuals, and duality gap with unconditioned tensors
+        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x * D_col, y * D_row, c_og, q_og, K_og, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
 
         # Add one kkt pass
         j += 1
 
         if verbose:
             print(f"[{k}] Primal Obj: {prim_obj.item():.4f}, Adjusted Dual Obj: {adjusted_dual.item():.4f}, "
-                    f"Gap: {duality_gap.item()/ (1 + abs(prim_obj.item()) + abs(adjusted_dual.item())):.2e}, Prim Res: {primal_residual.item() / (1 + q_norm):.2e}, Dual Res: {dual_residual.item() / (1 + c_norm):.2e}")
+                    f"Gap: {duality_gap.item()/ (1 + abs(prim_obj.item()) + abs(adjusted_dual.item())):.2e}, Prim Res: {primal_residual.item() / (1 + q_norm_og):.2e}, Dual Res: {dual_residual.item() / (1 + c_norm_og):.2e}")
             print("")
 
         # Termination conditions
-        if check_termination(primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual, q_norm, c_norm, tol):
+        if check_termination(primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual, q_norm_og, c_norm_og, tol):
             if verbose:
               print(f"Converged at iteration {k} restart loop {n}")
             break
     # ------------------- End Outer Loop ------------------------
     
-    return x, prim_obj.cpu().item(), k, n, j
+    return x * D_col, prim_obj.cpu().item(), k, n, j
 
-def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_iter=100_000, adaptive_step=False, primal_update=False):
+def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_iter=100_000, precondition=False, adaptive_step=False, primal_update=False):
     """
     Full Restarted PDHG solver implementation using PyTorch.
 
@@ -646,7 +762,7 @@ def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_it
         exit(1)
 
     # --- Run PDHG Solver on the GPU or CPU ---
-    minimizer, objective_value, total_iterations, total_restarts, kkt_passes = pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=max_iter, tol=tol, verbose=verbose, restart_period=restart_period, primal_update=primal_update, adaptive_step=adaptive_step)
+    minimizer, objective_value, total_iterations, total_restarts, kkt_passes = pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=max_iter, tol=tol, verbose=verbose, restart_period=restart_period, precondition=precondition, primal_update=primal_update, adaptive_step=adaptive_step)
 
     if verbose:
       print("Objective Value:", objective_value)
