@@ -58,15 +58,15 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             row_norms = torch.sqrt(torch.clamp(row_max, min=eps)).view(-1, 1)
 
             # Update sparse values
-            new_vals = K_s.values() / row_norms[row_indices, 0]
+            new_vals = K_s.values() * row_norms[row_indices, 0]
             K_s = torch.sparse_coo_tensor(K_s.indices(), new_vals, K_s.shape, device=K_s.device)
 
         else:
             row_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=1, keepdim=True))
             row_norms = torch.clamp(row_norms, min=eps)
-            K_s = K_s / row_norms
+            K_s = K_s * row_norms
 
-        D_row = D_row / row_norms
+        D_row = D_row * row_norms
 
         # --- Column norm ---
         if is_sparse:
@@ -77,15 +77,15 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             col_norms = torch.sqrt(torch.clamp(col_max, min=eps)).view(1, -1)
 
             # Update sparse values
-            new_vals = K_s.values() / col_norms[0, col_indices]
+            new_vals = K_s.values() * col_norms[0, col_indices]
             K_s = torch.sparse_coo_tensor(K_s.indices(), new_vals, K_s.shape, device=K_s.device)
 
         else:
             col_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=0, keepdim=True))
             col_norms = torch.clamp(col_norms, min=eps)
-            K_s = K_s / col_norms
+            K_s = K_s * col_norms
 
-        D_col = D_col / col_norms.T
+        D_col = D_col * col_norms.T
 
         # --- Convergence check ---
         if torch.max(torch.abs(1 - row_norms)) < eps and torch.max(torch.abs(1 - col_norms)) < eps:
@@ -713,7 +713,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         j += 1 # Add one kkt pass
       
         # Compute primal and dual residuals, and duality gap with unconditioned tensors
-        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x * D_col, y * D_row, c_og, q_og, K_og, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
+        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x / D_col, y / D_row, c_og, q_og, K_og, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
 
         # Add one kkt pass
         j += 1
@@ -730,7 +730,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
             break
     # ------------------- End Outer Loop ------------------------
     
-    return x * D_col, prim_obj.cpu().item(), k, n, j
+    return x / D_col, prim_obj.cpu().item(), k, n, j
 
 def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_iter=100_000, precondition=False, adaptive_step=False, primal_update=False):
     """
