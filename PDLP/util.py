@@ -200,7 +200,7 @@ def mps_to_standard_form(mps_file, device='cpu'):
     u_tensor = torch.tensor(u, dtype=torch.float32, device=device).view(-1, 1)
 
      
-    m_ineq = G.shape[0] if G.numel() > 0 else 0
+    m_ineq = G_tensor.shape[0] if G_tensor.numel() > 0 else 0
     
     # Combine original constraints into K and q
     combined_matrix_list = []
