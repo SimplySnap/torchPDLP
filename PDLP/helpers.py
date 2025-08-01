@@ -7,7 +7,7 @@ def sparse_vs_dense(A, device='cpu', kkt_passes=10):
     Parameters:
         A (torch.Tensor): 2D matrix (dense tensor)
         device (str): 'cpu' or 'cuda'
-        num_trials (int): Number of repetitions for timing
+        kkt_passes (even int): Number of repetitions for matrix multiplication
 
     Returns:
         tensor A as either sparse or dense, which ever is faster
