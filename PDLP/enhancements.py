@@ -1,6 +1,6 @@
 import torch
 
-def ruiz_precondition(c, G, h, A, b, l, u, device='cpu', max_iter=20, eps=1e-6):
+def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     """
     Performs Ruiz equilibration (scaling) on the standard-form linear program using GPU tensors.
 
@@ -16,10 +16,8 @@ def ruiz_precondition(c, G, h, A, b, l, u, device='cpu', max_iter=20, eps=1e-6):
     Inputs:
     -------
     c  : (n x 1) torch tensor — objective function vector
-    G  : (m_ineq x n) torch tensor — inequality constraint matrix
-    h  : (m_ineq x 1) torch tensor — inequality RHS vector
-    A  : (m_eq x n) torch tensor — equality constraint matrix
-    b  : (m_eq x 1) torch tensor — equality RHS vector
+    K  : ((m_ineq + m_eq) x n) torch tensor — constraint matrix (stacked G and A)
+    q  : ((m_ineq + m_eq) x 1) torch tensor — RHS vector (stacked h and b)
     l  : (n x 1) torch tensor — lower bounds on variables
     u  : (n x 1) torch tensor — upper bounds on variables
     max_iter : int — number of scaling iterations to perform (default: 20)
@@ -39,22 +37,7 @@ def ruiz_precondition(c, G, h, A, b, l, u, device='cpu', max_iter=20, eps=1e-6):
     - The scaling preserves feasibility and optimality but improves numerical conditioning.
     - You must rescale your solution after solving using D_col (and D_row if needed).
     """
-    
-    m_ineq = G.shape[0] if G.numel() > 0 else 0
-    
-    # Combine original constraints into K and q
-    combined_matrix_list = []
-    rhs = []
-    if m_ineq > 0:
-        combined_matrix_list.append(G)
-        rhs.append(h)
-    if A.numel() > 0:
-        combined_matrix_list.append(A)
-        rhs.append(b)
-    
-    K = torch.vstack(combined_matrix_list)
-    q = torch.vstack(rhs)
-
+   
     # --- Scaling Loop ---
     K_s, c_s, q_s, l_s, u_s = K.clone(), c.clone(), q.clone(), l.clone(), u.clone()
     m, n = K_s.shape
