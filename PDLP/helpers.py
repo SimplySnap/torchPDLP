@@ -40,6 +40,51 @@ def matvec(M, x):
 
     # Dense matrix multiplication
     return torch.matmul(M, x)
+
+def benchmark_sparse_vs_dense(A, device='cpu', kkt_passes=10):
+    """
+    Benchmarks matrix-vector multiplication using dense and sparse formats.
+    
+    Parameters:
+        A (torch.Tensor): 2D matrix (dense tensor)
+        device (str): 'cpu' or 'cuda'
+        num_trials (int): Number of repetitions for timing
+
+    Returns:
+        dict: {
+            'preferred': 'sparse' or 'dense',
+            'dense_time': float (seconds),
+            'sparse_time': float (seconds)
+        }
+    """
+    assert A.dim() == 2, "Input must be a 2D matrix"
+    m, n = A.shape
+    A = A.to(device)
+
+    # Dense timing
+    torch.cuda.synchronize() if device == 'cuda' else None
+    start = time.time()
+    A_transpose = A.t()
+    for _ in range(kkt_passes // 2):
+        vec = torch.randn(n, 1, device=device)
+        _ = A @ vec
+        _ = A_transpose @ vec
+    torch.cuda.synchronize() if device == 'cuda' else None
+    dense_time = time.time() - start
+
+    # Convert to sparse
+    A_sparse = A.to_sparse()
+    torch.cuda.synchronize() if device == 'cuda' else None
+    start = time.time()
+    A_sparse_transpose = A_sparse.t()
+    for _ in range(kkt_passes // 2):
+        vec = torch.randn(n, 1, device=device)
+        _ = torch.sparse.mm(A_sparse, vec)
+        _ = torch.sparse.mm(A_sparse_transpose, vec)
+    torch.cuda.synchronize() if device == 'cuda' else None
+    sparse_time = time.time() - start
+
+    return A_sparse if sparse_time < dense_time else A
     
 def project_lambda_box(grad, is_neg_inf, is_pos_inf):
     """
