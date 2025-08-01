@@ -40,7 +40,7 @@ def fixed_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta):
     return x, y, eta, eta
 
 
-def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k):
+def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j):
     """
     Perform one step of the Primal-Dual Hybrid Gradient (PDHG) algorithm with adaptive stepsize.
     Args:
@@ -56,6 +56,7 @@ def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k):
         omega (float): Scaling factor for the dual update.
         theta (float): Extrapolation parameter.
         k (int): Current iteration number.
+        j (int): Current KKT pass number.
     Returns:
         x (torch.Tensor): Updated primal variable.
         y (torch.Tensor): Updated dual variable.
@@ -88,6 +89,8 @@ def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k):
             y[:m_ineq] = torch.clamp(y[:m_ineq], min=0.0)
             
         diff_y = y - y_old
+        
+        j += 1
 
         # Calculate the denominator for the eta_bar update
         denominator = 2 * (diff_y.T @ K @ diff_x)
@@ -109,4 +112,4 @@ def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k):
 
         eta = eta_prime
     
-    return x, y, eta, eta_prime
+    return x, y, eta, eta_prime, j
