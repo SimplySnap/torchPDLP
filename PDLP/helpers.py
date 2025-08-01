@@ -50,34 +50,58 @@ def spectral_norm_estimate_torch(K, num_iters=10):
       b /= torch.norm(b)
   return torch.norm(K @ b)
 
+def compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual):
+    """
+    Computes the primal and dual residuals, duality gap, and KKT error.
+    
+    Args:
+        x (torch.Tensor): Primal variable.
+        y (torch.Tensor): Dual variable.
+        c (torch.Tensor): Coefficients for the primal objective.
+        q (torch.Tensor): Right-hand side vector for the constraints.
+        K (torch.Tensor): Constraint matrix.
+        m_ineq (int): Number of inequality constraints.
+        omega (float): Scaling factor for the dual update.
+        is_neg_inf (torch.Tensor): Boolean mask for negative infinity lower bounds.
+        is_pos_inf (torch.Tensor): Boolean mask for positive infinity upper bounds.
+        l_dual (torch.Tensor): Lower bounds for the dual variables.
+        u_dual (torch.Tensor): Upper bounds for the dual variables.
+    Returns:
+        primal_residual (torch.Tensor): Norm of the primal residual.
+        dual_residual (torch.Tensor): Norm of the dual residual.
+        duality_gap (torch.Tensor): Duality gap.
+    """
+    # Primal and dual objective
+    grad = c - K.T @ y
+    prim_obj = (c.T @ x).flatten()
+    dual_obj = (q.T @ y).flatten()
+
+    # Lagrange multipliers from box projection
+    lam = project_lambda_box(grad, is_neg_inf, is_pos_inf)
+    lam_pos = (l_dual.T @ torch.clamp(lam, min=0.0)).flatten()
+    lam_neg = (u_dual.T @ torch.clamp(lam, max=0.0)).flatten()
+
+    adjusted_dual = dual_obj + lam_pos + lam_neg
+    duality_gap = adjusted_dual - prim_obj
+      
+    # Primal residual (feasibility)
+    full_residual = K @ x - q
+    residual_ineq = torch.clamp(full_residual[:m_ineq], max=0.0)
+    residual_eq = full_residual[m_ineq:]
+    primal_residual = torch.norm(torch.vstack([residual_eq, residual_ineq]), p=2).flatten()
+
+    # Dual residual (change in x)
+    dual_residual = torch.norm(grad - lam, p=2).flatten()
+    
+    return primal_residual, dual_residual, duality_gap
+    
 def KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device):
       """
       Computes the KKT error using global variables.
       """
       omega_sqrd = omega ** 2
-      # Primal and dual objective
-      grad = c - K.T @ y
-      prim_obj = (c.T @ x).flatten()
-      dual_obj = (q.T @ y).flatten()
-
-      # Lagrange multipliers from box projection
-      lam = project_lambda_box(grad, is_neg_inf, is_pos_inf)
-      lam_pos = (l_dual.T @ torch.clamp(lam, min=0.0)).flatten()
-      lam_neg = (u_dual.T @ torch.clamp(lam, max=0.0)).flatten()
-
-      adjusted_dual = dual_obj + lam_pos + lam_neg
-      duality_gap = adjusted_dual - prim_obj
-      
-      
-      # Primal residual (feasibility)
-      full_residual = K @ x - q
-      residual_ineq = torch.clamp(full_residual[:m_ineq], max=0.0)
-      residual_eq = full_residual[m_ineq:]
-      primal_residual = torch.norm(torch.vstack([residual_eq, residual_ineq]), p=2).flatten()
-
-      # Dual residual (change in x)
-      dual_residual = torch.norm(grad - lam, p=2).flatten()
-
+      # Compute primal and dual residuals, and duality gap
+      primal_residual, dual_residual, duality_gap = compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
       # Compute the error
       KKT = torch.sqrt(omega_sqrd * primal_residual ** 2 + (dual_residual ** 2) / omega_sqrd + duality_gap ** 2)
 
