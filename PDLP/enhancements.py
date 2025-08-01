@@ -30,8 +30,12 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     l_s : (n x 1) torch tensor — scaled lower bounds
     u_s : (n x 1) torch tensor — scaled upper bounds
     D_col : (n x 1) torch tensor — final column scaling factors (for rescaling solution)
+<<<<<<< HEAD
     D_row : (m x 1) torch tensor — final row scaling factors (for rescaling dual)
     old_vars : tuple — original variables (K, c, q, l, u) for computing termination criteria
+=======
+    m_ineq : int — number of inequality constraints (used for slicing G vs A in K_s if needed)
+>>>>>>> 1e2784195e4382ac8ca7e4cd74d87183745d71b5
 
     Notes:
     ------
@@ -66,10 +70,14 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     l_s /= D_col
     u_s /= D_col
 
+<<<<<<< HEAD
     #Pack old variables to return (for computing termination criteria)
     old_vars = (K,c,q,l,u)
 
     return K_s, c_s, q_s, l_s, u_s, D_col, D_row, old_vars
+=======
+    return K_s, c_s, q_s, l_s, u_s, D_col
+>>>>>>> 1e2784195e4382ac8ca7e4cd74d87183745d71b5
 
 def primal_weight_update(x_prev, x, y_prev, y, omega, smooth_theta):
     diff_y_norm = torch.linalg.norm(y_prev - y, 2)

@@ -3,7 +3,11 @@ import torch
 import os
 from util import mps_to_standard_form, Timer
 from enhancements import ruiz_precondition
+<<<<<<< HEAD
 from PDLP.primal_dual_hybrid_gradient import pdlp_algorithm
+=======
+from primal_dual_hybrif_gradient import pdlp_algorithm
+>>>>>>> 1e2784195e4382ac8ca7e4cd74d87183745d71b5
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
@@ -63,6 +67,7 @@ if __name__ == '__main__':
         try:
             with Timer("Solve time") as t:
                 # PRECONDITION
+<<<<<<< HEAD
                 K_s, c_s, q_s, l_s, u_s, D_col, D_row, old_vars = ruiz_precondition(c, K, q, l, u, device = device)
                 #Wrap preconditioned variables for termination criteria checks
                 precond_vars = (D_col, D_row, old_vars)
@@ -70,6 +75,13 @@ if __name__ == '__main__':
                 
                 # POSTPROCESSING
                 x_final = x * D_col #Undo preconditioning
+=======
+                K_s, c_s, q_s, l_s, u_s, D_col = ruiz_precondition(c, K, q, l, u, device = device)
+                x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=True)
+                
+                # POSTPROCESSING
+                x_final = x * D_col
+>>>>>>> 1e2784195e4382ac8ca7e4cd74d87183745d71b5
                 obj_final = (c.T @ x_final).item()
                 
                 print(f"Objective value: {obj_final:.4f}")
