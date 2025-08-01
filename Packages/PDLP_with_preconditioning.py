@@ -36,7 +36,8 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     - The scaling preserves feasibility and optimality but improves numerical conditioning.
     - You must rescale your solution after solving using D_col (and D_row if needed).
     """
-   
+    import torch
+    
     is_sparse = K.is_sparse
 
     # Clone inputs
