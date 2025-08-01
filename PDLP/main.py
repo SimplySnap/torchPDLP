@@ -64,7 +64,7 @@ if __name__ == '__main__':
             with Timer("Solve time") as t:
                 # PRECONDITION
                 K_s, m_ineq, c_s, q_s, l_s, u_s, D_col = ruiz_precondition(c, G, h, A, b, l, u, device = device)
-                x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=False)
+                x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=True)
                 
                 # POSTPROCESSING
                 x_final = x * D_col

@@ -1,6 +1,7 @@
 import torch
 from primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg
 from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_and_duality_gap, check_termination
+from enhancements import primal_weight_update
 
 def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, primal_update=False):
     
@@ -102,9 +103,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         n += 1 # Increase restart loop counter
 
         if primal_update: # Primal weight update
-            delta_x = torch.norm(x - x_last_restart, p=2)
-            delta_y = torch.norm(y - y_last_restart, p=2)
-            omega = torch.sqrt(omega * (delta_y / delta_x)) if delta_x > 1e-6 and delta_y > 1e-6 else omega
+            omega = primal_weight_update(x_last_restart, x, y_last_restart, y, omega, 0.5)
 
         KKT_first = KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device) # Update KKT_first for next iteration (incase primal weight updates)
         j += 1 # Add one kkt pass
