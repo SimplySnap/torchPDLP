@@ -59,15 +59,15 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             row_norms[row_norms < eps] = 1.0
 
             # Update sparse values
-            new_vals = K_s.values() / row_norms[row_indices, 0]
+            new_vals = K_s.values() * row_norms[row_indices, 0]
             K_s = torch.sparse_coo_tensor(K_s.indices(), new_vals, K_s.shape, device=K_s.device)
 
         else:
             row_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=1, keepdim=True))
             row_norms[row_norms < eps] = 1.0
-            K_s = K_s / row_norms
+            K_s = K_s * row_norms
 
-        D_row = D_row / row_norms
+        D_row = D_row * row_norms
 
         # --- Column norm ---
         if is_sparse:
@@ -79,25 +79,25 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             col_norms[col_norms < eps] = 1.0
 
             # Update sparse values
-            new_vals = K_s.values() / col_norms[0, col_indices]
+            new_vals = K_s.values() * col_norms[0, col_indices]
             K_s = torch.sparse_coo_tensor(K_s.indices(), new_vals, K_s.shape, device=K_s.device)
 
         else:
             col_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=0, keepdim=True))
             col_norms[col_norms < eps] = 1.0
-            K_s = K_s / col_norms
+            K_s = K_s * col_norms
 
-        D_col = D_col / col_norms.T
+        D_col = D_col * col_norms.T
 
         # --- Convergence check ---
         if torch.max(torch.abs(1 - row_norms)) < eps and torch.max(torch.abs(1 - col_norms)) < eps:
             break
 
     # --- Scale other vectors ---
-    c_s = c_s / D_col
-    q_s = q_s / D_row
-    l_s = l_s * D_col
-    u_s = u_s * D_col
+    c_s = c_s * D_col
+    q_s = q_s * D_row
+    l_s = l_s / D_col
+    u_s = u_s / D_col
 
     return c_s, K_s, q_s, l_s, u_s, D_col, D_row
 
