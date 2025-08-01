@@ -208,7 +208,7 @@ def mps_to_standard_form(mps_file, device='cpu'):
     if m_ineq > 0:
         combined_matrix_list.append(G_tensor)
         rhs.append(h_tensor)
-    if A.numel() > 0:
+    if A_tensor.numel() > 0:
         combined_matrix_list.append(A_tensor)
         rhs.append(b_tensor)
     
