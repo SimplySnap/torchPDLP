@@ -199,9 +199,8 @@ def mps_to_standard_form(mps_file, device='cpu'):
     l_tensor = torch.tensor(l, dtype=torch.float32, device=device).view(-1, 1)
     u_tensor = torch.tensor(u, dtype=torch.float32, device=device).view(-1, 1)
 
-     
     m_ineq = G_tensor.shape[0] if G_tensor.numel() > 0 else 0
-    
+        
     # Combine original constraints into K and q
     combined_matrix_list = []
     rhs = []
@@ -214,5 +213,5 @@ def mps_to_standard_form(mps_file, device='cpu'):
     
     K_tensor = torch.vstack(combined_matrix_list)
     q_tensor = torch.vstack(rhs)
-
+    
     return c_tensor, K_tensor, q_tensor, m_ineq, l_tensor, u_tensor
