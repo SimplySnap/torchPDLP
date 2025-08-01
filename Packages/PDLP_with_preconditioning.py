@@ -125,6 +125,9 @@ def sparse_vs_dense(A, device='cpu', kkt_passes=10):
     m, n = A.shape
     A = A.to(device)
 
+    # So that the startup time is not recorded in the test
+    _ = torch.randn(5, 5, device=device) @ torch.randn(5, 1, device=device)
+
     # Dense timing
     torch.cuda.synchronize() if device == 'cuda' else None
     start = time.time()
