@@ -108,8 +108,8 @@ def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j)
         eta_prime = torch.min(eta_prime_term1, eta_prime_term2)
 
         if eta <= eta_bar:
-            return x, y, eta, eta_prime
+            return x, y, eta.squeeze(), eta_prime.squeeze(), j
 
         eta = eta_prime
-    
-    return x, y, eta, eta_prime, j
+        
+        return x, y, eta.squeeze(), eta.squeeze(), j
