@@ -1,5 +1,91 @@
 import torch
 
+def transpose_matrix(M):
+    """
+    Returns the transpose of matrix M.
+    Supports both dense and sparse PyTorch tensors.
+
+    Parameters:
+        M (torch.Tensor or torch.sparse.Tensor): Input matrix (2D)
+
+    Returns:
+        torch.Tensor: Transposed matrix (same type as input)
+    """
+    if M.is_sparse:
+        return M.transpose(0, 1).coalesce()  # coalesce ensures canonical form
+    elif M.is_sparse_csr:
+        return M.transpose(0, 1)  # CSR tensors support transpose directly
+    else:
+        return M.t()
+
+def matvec(M, x):
+    """
+    Performs matrix-vector multiplication M @ x
+    Supports both dense and sparse matrices.
+
+    Parameters:
+        M (torch.Tensor or torch.sparse.Tensor): Matrix (2D)
+        x (torch.Tensor): Vector (1D or 2D with shape [n, 1])
+
+    Returns:
+        torch.Tensor: Result of M @ x
+    """
+    # Ensure x is a column vector
+    if x.dim() == 1:
+        x = x.view(-1, 1)
+
+    # Sparse matrix multiplication
+    if M.is_sparse or M.is_sparse_csr:
+        return torch.sparse.mm(M, x)
+
+    # Dense matrix multiplication
+    return torch.matmul(M, x)
+
+def sparse_vs_dense(A, device='cpu', kkt_passes=10):
+    """
+    Benchmarks matrix-vector multiplication using dense and sparse formats.
+    
+    Parameters:
+        A (torch.Tensor): 2D matrix (dense tensor)
+        device (str): 'cpu' or 'cuda'
+        num_trials (int): Number of repetitions for timing
+
+    Returns:
+        dict: {
+            'preferred': 'sparse' or 'dense',
+            'dense_time': float (seconds),
+            'sparse_time': float (seconds)
+        }
+    """
+    assert A.dim() == 2, "Input must be a 2D matrix"
+    m, n = A.shape
+    A = A.to(device)
+
+    # Dense timing
+    torch.cuda.synchronize() if device == 'cuda' else None
+    start = time.time()
+    A_transpose = A.t()
+    for _ in range(kkt_passes // 2):
+        vec = torch.randn(n, 1, device=device)
+        _ = A @ vec
+        _ = A_transpose @ vec
+    torch.cuda.synchronize() if device == 'cuda' else None
+    dense_time = time.time() - start
+
+    # Convert to sparse
+    A_sparse = A.to_sparse()
+    torch.cuda.synchronize() if device == 'cuda' else None
+    start = time.time()
+    A_sparse_transpose = A_sparse.t()
+    for _ in range(kkt_passes // 2):
+        vec = torch.randn(n, 1, device=device)
+        _ = torch.sparse.mm(A_sparse, vec)
+        _ = torch.sparse.mm(A_sparse_transpose, vec)
+    torch.cuda.synchronize() if device == 'cuda' else None
+    sparse_time = time.time() - start
+
+    return A_sparse if sparse_time < dense_time else A
+    
 def project_lambda_box(grad, is_neg_inf, is_pos_inf):
     """
     Projects the gradient onto the normal cone of the feasible region defined by bounds l and u.

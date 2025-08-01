@@ -48,7 +48,7 @@ if __name__ == '__main__':
         print(f"\nProcessing {mps_file_path}...")
         try:
             # --- Load problem ---
-            c, G, h, A, b, l, u = mps_to_standard_form(mps_file_path, device=device)
+            c, K, q, m_ineq, l, u= mps_to_standard_form(mps_file_path, device=device)
         except Exception as e:
             print(f"Failed to load MPS file: {mps_file_path}. Error: {e}")
             results.append({
@@ -63,7 +63,7 @@ if __name__ == '__main__':
         try:
             with Timer("Solve time") as t:
                 # PRECONDITION
-                K_s, m_ineq, c_s, q_s, l_s, u_s, D_col = ruiz_precondition(c, G, h, A, b, l, u, device = device)
+                K_s, c_s, q_s, l_s, u_s, D_col = ruiz_precondition(c, K, q, l, u, device = device)
                 x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=True)
                 
                 # POSTPROCESSING
