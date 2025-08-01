@@ -3,7 +3,7 @@ import torch
 import os
 from util import mps_to_standard_form, Timer
 from enhancements import ruiz_precondition
-from primal_dual_hybrif_gradient import pdlp_algorithm
+from PDLP.primal_dual_hybrid_gradient import pdlp_algorithm
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
@@ -67,7 +67,7 @@ if __name__ == '__main__':
                 x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=True)
                 
                 # POSTPROCESSING
-                x_final = x * D_col
+                x_final = x * D_col #Undo preconditioning
                 obj_final = (c.T @ x_final).item()
                 
                 print(f"Objective value: {obj_final:.4f}")

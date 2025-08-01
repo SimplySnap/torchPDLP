@@ -4,7 +4,31 @@ from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_a
 from enhancements import primal_weight_update
 
 def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, primal_update=False):
-    
+    '''
+    Main function to run the PDLP algorithm. 
+
+    Args:
+        K (torch.Tensor): Constraint matrix.
+        m_ineq (int): Number of inequality constraints.
+        c (torch.Tensor): Coefficients for the primal objective.
+        q (torch.Tensor): Right-hand side vector for the constraints.
+        l (torch.Tensor): Lower bounds for the primal variable.
+        u (torch.Tensor): Upper bounds for the primal variable.
+        device (torch.device): Device to run the algorithm on (cpu or cuda).
+        max_iter (int): Maximum number of iterations.
+        tol (float): Tolerance for convergence.
+        verbose (bool): Whether to print termination information.
+        restart_period (int): Period for checking restart criteria.
+        primal_update (bool): Whether to perform primal weight updates.
+    Returns:
+        x (torch.Tensor): Primal solution.
+        prim_obj (float): Objective value of the primal solution.
+        k (int): Total number of iterations.
+        n (int): Number of restarts.
+        j (int): Total number of KKT passes.
+    '''
+
+    #Initializations
     is_neg_inf = torch.isinf(l) & (l < 0)
     is_pos_inf = torch.isinf(u) & (u > 0)
 
@@ -83,7 +107,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
                 KKT_min = min(KKT_current, KKT_average)
                 KKT_previous = KKT_error(x_previous, y_previous, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device) # For checking necessary criteria
 
-                # Add three kkt passes
+                # Add three kkt passes for KKT_cur, KKT_avg and KKT_prev
                 j += 3
             
                 # Check Restart Criteria and update with Restart Candidate
