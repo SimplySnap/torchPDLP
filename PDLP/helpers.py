@@ -7,14 +7,10 @@ def sparse_vs_dense(A, device='cpu', kkt_passes=10):
     Parameters:
         A (torch.Tensor): 2D matrix (dense tensor)
         device (str): 'cpu' or 'cuda'
-        num_trials (int): Number of repetitions for timing
+        kkt_passes (even int): Number of repetitions for matrix multiplication
 
     Returns:
-        dict: {
-            'preferred': 'sparse' or 'dense',
-            'dense_time': float (seconds),
-            'sparse_time': float (seconds)
-        }
+        tensor A as either sparse or dense, which ever is faster
     """
     assert A.dim() == 2, "Input must be a 2D matrix"
     m, n = A.shape
