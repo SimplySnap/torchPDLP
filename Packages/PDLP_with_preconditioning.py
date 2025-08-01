@@ -718,7 +718,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         j += 1 # Add one kkt pass
       
         # Compute primal and dual residuals, and duality gap with unconditioned tensors
-        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x * D_col, y * D_row, c_og, q_og, K_og, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
+        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x / D_col, y / D_row, c_og, q_og, K_og, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
 
         # Add one kkt pass
         j += 1
