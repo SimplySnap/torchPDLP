@@ -289,7 +289,7 @@ def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j)
         
         return x, y, eta.squeeze(), eta.squeeze(), j
 
-def mps_to_standard_form(mps_file, device='cpu'):
+def mps_to_standard_form(mps_file, device='cpu', verbose=True):
     """
     Parses an MPS file and returns the standard form LP components as PyTorch tensors:
         minimize     cᵀx
@@ -480,7 +480,8 @@ def mps_to_standard_form(mps_file, device='cpu'):
 
     # Check if using sparse matrix is faster
     K_tensor = sparse_vs_dense(K_tensor, device=device, kkt_passes = 10)
-    print("Using sparse operations") if K_tensor.is_sparse else print("Using dense operations")
+    if verbose:
+        print("Using sparse operations") if K_tensor.is_sparse else print("Using dense operations")
     
     return c_tensor, K_tensor, q_tensor, m_ineq, l_tensor, u_tensor
 
@@ -639,7 +640,7 @@ def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_it
 
     # --- Parameter Loading ---
     try:
-          c, K, q, m_ineq, l, u = mps_to_standard_form(mps_file_path, device=device)
+          c, K, q, m_ineq, l, u = mps_to_standard_form(mps_file_path, device=device, verbose=verbose)
     except Exception as e:
         print(f"Failed to load MPS file: {e}")
         exit(1)
