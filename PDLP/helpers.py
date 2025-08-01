@@ -41,7 +41,7 @@ def matvec(M, x):
     # Dense matrix multiplication
     return torch.matmul(M, x)
 
-def benchmark_sparse_vs_dense(A, device='cpu', kkt_passes=10):
+def sparse_vs_dense(A, device='cpu', kkt_passes=10):
     """
     Benchmarks matrix-vector multiplication using dense and sparse formats.
     
