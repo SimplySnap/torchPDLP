@@ -55,7 +55,8 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             abs_vals = K_s.values().abs()
             row_max = torch.zeros(m, device=device)
             row_max.scatter_reduce_(0, row_indices, abs_vals, reduce="amax", include_self=True)
-            row_norms = torch.sqrt(torch.clamp(row_max, min=eps)).view(-1, 1)
+            row_norms = torch.sqrt(row_max).view(-1, 1)
+            row_norms[row_norms < eps] = 1.0
 
             # Update sparse values
             new_vals = K_s.values() / row_norms[row_indices, 0]
@@ -63,7 +64,7 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
 
         else:
             row_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=1, keepdim=True))
-            row_norms = torch.clamp(row_norms, min=eps)
+            row_norms[row_norms < eps] = 1.0
             K_s = K_s / row_norms
 
         D_row = D_row / row_norms
@@ -74,7 +75,8 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             abs_vals = K_s.values().abs()
             col_max = torch.zeros(n, device=device)
             col_max.scatter_reduce_(0, col_indices, abs_vals, reduce="amax", include_self=True)
-            col_norms = torch.sqrt(torch.clamp(col_max, min=eps)).view(1, -1)
+            col_norms = torch.sqrt(col_max).view(1, -1)
+            col_norms[col_norms < eps] = 1.0
 
             # Update sparse values
             new_vals = K_s.values() / col_norms[0, col_indices]
@@ -82,7 +84,7 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
 
         else:
             col_norms = torch.sqrt(torch.linalg.norm(K_s, ord=float('inf'), dim=0, keepdim=True))
-            col_norms = torch.clamp(col_norms, min=eps)
+            col_norms[col_norms < eps] = 1.0
             K_s = K_s / col_norms
 
         D_col = D_col / col_norms.T
