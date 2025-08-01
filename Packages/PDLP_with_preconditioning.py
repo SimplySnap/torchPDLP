@@ -239,7 +239,7 @@ def compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_
   lam_neg = (u_dual.T @ torch.clamp(lam, max=0.0)).flatten()
 
   adjusted_dual = dual_obj + lam_pos + lam_neg
-  duality_gap = adjusted_dual - prim_obj
+  duality_gap = torch.abs(adjusted_dual - prim_obj)
     
   # Primal residual (feasibility)
   full_residual = K @ x - q
