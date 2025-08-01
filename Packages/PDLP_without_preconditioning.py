@@ -645,7 +645,7 @@ def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_it
         exit(1)
 
     # --- Run PDHG Solver on the GPU or CPU ---
-    minimizer, objective_value, total_iterations, total_restarts, kkt_passes = pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=tol, verbose=verbose, restart_period=40, primal_update=primal_update, adaptive_step=adaptive_step)
+    minimizer, objective_value, total_iterations, total_restarts, kkt_passes = pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=max_iter, tol=tol, verbose=verbose, restart_period=restart_period, primal_update=primal_update, adaptive_step=adaptive_step)
 
     if verbose:
       print("Objective Value:", objective_value)
