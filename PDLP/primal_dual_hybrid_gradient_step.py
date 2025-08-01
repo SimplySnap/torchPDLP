@@ -60,12 +60,6 @@ def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j)
     Returns:
         x (torch.Tensor): Updated primal variable.
         y (torch.Tensor): Updated dual variable.
-<<<<<<< HEAD
-        eta (float): Updated step size.
-        eta_prime (float): New step size for the next iteration.
-        j (int): Updated KKT pass number.
-=======
->>>>>>> 1e2784195e4382ac8ca7e4cd74d87183745d71b5
     """ 
     x_old = x.clone()
     y_old = y.clone()
@@ -118,8 +112,4 @@ def adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j)
 
         eta = eta_prime
         
-<<<<<<< HEAD
-    return x, y, eta.squeeze(), eta.squeeze(), j
-=======
         return x, y, eta.squeeze(), eta.squeeze(), j
->>>>>>> 1e2784195e4382ac8ca7e4cd74d87183745d71b5
