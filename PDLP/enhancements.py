@@ -83,3 +83,10 @@ def ruiz_precondition(c, G, h, A, b, l, u, device='cpu', max_iter=20, eps=1e-6):
     u_s /= D_col
 
     return K_s, m_ineq, c_s, q_s, l_s, u_s, D_col
+
+def primal_weight_update(x_prev, x, y_prev, y, omega, smooth_theta):
+    diff_y_norm = torch.linalg.norm(y_prev - y, 2)
+    diff_x_norm = torch.linalg.norm(x_prev - x, 2)
+    if diff_x_norm > 0 and diff_y_norm > 0:
+        omega = torch.exp(smooth_theta * (torch.log(diff_y_norm/diff_x_norm)) + (1-smooth_theta)*torch.log(omega))
+    return omega
