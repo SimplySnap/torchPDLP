@@ -27,7 +27,7 @@ class Timer:
       print(f"{self.label}: {self.elapsed:.6f} seconds")
 
 
-def mps_to_standard_form(mps_file, device='cpu'):
+def mps_to_standard_form(mps_file, device='cpu', verbose=True):
     """
     Parses an MPS file and returns the standard form LP components as PyTorch tensors:
         minimize     cᵀx
@@ -37,7 +37,7 @@ def mps_to_standard_form(mps_file, device='cpu'):
 
     Returns: c, G, h, A, b, l, u
     """
-
+    from helpers import sparse_vs_dense
 
     #Read MPS file
     with open(mps_file, 'r') as f:
@@ -213,5 +213,10 @@ def mps_to_standard_form(mps_file, device='cpu'):
     
     K_tensor = torch.vstack(combined_matrix_list)
     q_tensor = torch.vstack(rhs)
+
+    # Check if sparse operations are faster
+    K_tensor = sparse_vs_dense(K_tensor, device=device, kkt_passes=10)
+    if verbose:
+      print("Using Sparse operations") if K_tensor.is_sparse else print("Using Dense operations")
     
     return c_tensor, K_tensor, q_tensor, m_ineq, l_tensor, u_tensor
