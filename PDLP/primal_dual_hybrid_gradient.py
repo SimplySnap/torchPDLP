@@ -3,7 +3,7 @@ from primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg
 from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_and_duality_gap, check_termination
 from enhancements import primal_weight_update
 
-def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, primal_update=False):
+def pdlp_algorithm(K, m_ineq, c, q, l, u, precond_vars, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, primal_update=False):
     '''
     Main function to run the PDLP algorithm. 
 
@@ -14,6 +14,10 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         q (torch.Tensor): Right-hand side vector for the constraints.
         l (torch.Tensor): Lower bounds for the primal variable.
         u (torch.Tensor): Upper bounds for the primal variable.
+        precond_vars (tuple): Preconditioned variables (D_col, D_row, old_vars).
+            D_col: Column scaling factors for primal variable.
+            D_row: Row scaling factors for dual variable.
+            old_vars: Original variables (K, c, q, l, u) for computing termination criteria.
         device (torch.device): Device to run the algorithm on (cpu or cuda).
         max_iter (int): Maximum number of iterations.
         tol (float): Tolerance for convergence.
@@ -44,6 +48,15 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
     omega = c_norm / q_norm if q_norm > 1e-6 and c_norm > 1e-6 else 1.0
 
     theta = 1.0
+
+    #Unwrapping preconditioned variables for termination criteria checking
+    D_col, D_row, old_vars = precond_vars
+    K_old, c_old, q_old, l_old, u_old = old_vars
+    G_old = K_old[:m_ineq, :] if m_ineq > 0 else None
+    A_old = K_old[m_ineq:, :] if m_ineq < K_old.shape[0] else None
+    h_old = q_old[:m_ineq] if m_ineq > 0 else None
+    b_old = q_old[m_ineq:] if m_ineq < q_old.shape[0] else None
+
 
     # Restart Parameters [Sufficient, Necessary, Artificial]
     beta = [0.2, 0.8, 0.36]
@@ -132,8 +145,13 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         KKT_first = KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device) # Update KKT_first for next iteration (incase primal weight updates)
         j += 1 # Add one kkt pass
       
+
+        #----------- Compute de-preconditioned variables for termination criteria --------
+        x_old_cur = x * D_col # Undo preconditioning
+        y_old_cur = y * D_row
+
         # Compute primal and dual residuals, and duality gap
-        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x, y, c, q, K, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
+        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x_old_cur, y_old_cur, c_old, q_old, K_old, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
 
         # Add one kkt pass
         j += 1

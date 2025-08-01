@@ -63,8 +63,10 @@ if __name__ == '__main__':
         try:
             with Timer("Solve time") as t:
                 # PRECONDITION
-                K_s, c_s, q_s, l_s, u_s, D_col = ruiz_precondition(c, K, q, l, u, device = device)
-                x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=True)
+                K_s, c_s, q_s, l_s, u_s, D_col, D_row, old_vars = ruiz_precondition(c, K, q, l, u, device = device)
+                #Wrap preconditioned variables for termination criteria checks
+                precond_vars = (D_col, D_row, old_vars)
+                x, prim_obj, k, n, j = pdlp_algorithm(K_s, m_ineq, c_s, q_s, l_s, u_s,precond_vars ,device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, primal_update=True)
                 
                 # POSTPROCESSING
                 x_final = x * D_col #Undo preconditioning
