@@ -48,6 +48,7 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     D_row = torch.ones((m, 1), dtype=K.dtype, device=device)
     D_col = torch.ones((n, 1), dtype=K.dtype, device=device)
 
+    #print(c_s, K_s, q_s, l_s, u_s, D_col, D_row)
     for _ in range(max_iter):
         # --- Row norm ---
         if is_sparse:
@@ -67,7 +68,7 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             row_norms[row_norms < eps] = 1.0
             K_s = K_s / row_norms
 
-        D_row = D_row / row_norms
+        D_row = D_row * row_norms
 
         # --- Column norm ---
         if is_sparse:
@@ -87,7 +88,7 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
             col_norms[col_norms < eps] = 1.0
             K_s = K_s / col_norms
 
-        D_col = D_col / col_norms.T
+        D_col = D_col * col_norms.T
 
         # --- Convergence check ---
         if torch.max(torch.abs(1 - row_norms)) < eps and torch.max(torch.abs(1 - col_norms)) < eps:
@@ -98,7 +99,7 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     q_s = q_s / D_row
     l_s = l_s * D_col
     u_s = u_s * D_col
-
+    #print(c_s, K_s, q_s, l_s, u_s, D_col, D_row)
     return c_s, K_s, q_s, l_s, u_s, D_col, D_row
 
 
@@ -202,7 +203,7 @@ def spectral_norm_estimate_torch(A, num_iters=20):
   """
   import torch
 
-  b = torch.randn(A.shape[1], 1, device=A.device)
+  b = torch.ones(A.shape[1], 1, device=A.device)
   for _ in range(num_iters):
       b = A.T @ (A @ b)
       b /= torch.norm(b)
@@ -586,9 +587,9 @@ def mps_to_standard_form(mps_file, device='cpu', verbose=True):
     q_tensor = torch.vstack(rhs)
 
     # Check if using sparse matrix is faster
-    K_tensor = sparse_vs_dense(K_tensor, device=device, kkt_passes = 10)
-    if verbose:
-        print("Using sparse operations") if K_tensor.is_sparse else print("Using dense operations")
+    #K_tensor = sparse_vs_dense(K_tensor, device=device, kkt_passes = 10)
+    #if verbose:
+    #    print("Using sparse operations") if K_tensor.is_sparse else print("Using dense operations")
     
     return c_tensor, K_tensor, q_tensor, m_ineq, l_tensor, u_tensor
 
@@ -602,15 +603,11 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
     is_neg_inf = torch.isinf(l) & (l < 0)
     is_pos_inf = torch.isinf(u) & (u > 0)
 
-    l_dual = l.clone()
-    u_dual = u.clone()
-    l_dual[is_neg_inf] = 0
-    u_dual[is_pos_inf] = 0
 
     # -------------------- Preconditioning --------------------  
     
     # Save unconditioned tensors for terminiation checks
-    c_og, K_og, q_og, l_og, u_og = c.clone(), K.clone(), q.clone(), l.clone(), u.clone
+    c_og, K_og, q_og, l_og, u_og = c.clone(), K.clone(), q.clone(), l.clone(), u.clone()
     if precondition: 
         # Precondition tensors and output D_col and D_row to uncondition the primal and dual for termination checks
         c, K, q, l, u, D_col, D_row = ruiz_precondition(c, K, q, l, u, device=device, max_iter=20, eps=1e-6)
@@ -619,7 +616,18 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         D_col = torch.ones((K.shape[1], 1), dtype=K.dtype, device=device)
 
     # ------------------- End Preconditioning ------------------
+    #print(c, K, q, l, u, D_col, D_row)
         
+    l_dual = l.clone()
+    u_dual = u.clone()
+    l_dual[is_neg_inf] = 0
+    u_dual[is_pos_inf] = 0
+
+    l_dual_og = l_og.clone()
+    u_dual_og = u_og.clone()
+    l_dual_og[is_neg_inf] = 0
+    u_dual_og[is_pos_inf] = 0
+    
     q_norm = torch.linalg.norm(q, 2)
     c_norm = torch.linalg.norm(c, 2)
     q_norm_og = torch.linalg.norm(q_og, 2)
@@ -717,8 +725,8 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         KKT_first = KKT_error(x, y, c, q, K, m_ineq, omega, is_neg_inf, is_pos_inf, l_dual, u_dual, device) # Update KKT_first for next iteration (incase primal weight updates)
         j += 1 # Add one kkt pass
       
-        # Compute primal and dual residuals, and duality gap with unconditioned tensors
-        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x / D_col, y / D_row, c_og, q_og, K_og, m_ineq, is_neg_inf, is_pos_inf, l_dual, u_dual)
+        # Compute primal and dual residuals, and duality gap with unconditioned tensors                          x / D_col , y / D_row
+        primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual = compute_residuals_and_duality_gap(x / D_col , y / D_row, c_og, q_og, K_og, m_ineq, is_neg_inf, is_pos_inf, l_dual_og, u_dual_og)
 
         # Add one kkt pass
         j += 1
@@ -737,7 +745,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
     
     return x / D_col, prim_obj.cpu().item(), k, n, j
 
-def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_iter=100_000, precondition=False, adaptive_step=False, primal_update=False):
+def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_iter=1000000, precondition=True, adaptive_step=True, primal_update=True):
     """
     Full Restarted PDHG solver implementation using PyTorch.
 
@@ -748,7 +756,7 @@ def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_it
       verbose (bool, optional): Whether to print termination check information. Defaults to True.
 
     Returns:
-      The minimizer, objective value, and number of iterations for convergence.
+      The minimizer, objective value, and total iterations, total restarts, and total kkt passes.
     """
     import torch
 
@@ -767,7 +775,7 @@ def pdlp_solver(mps_file_path, tol=1e-4, restart_period=40, verbose=True, max_it
         print(f"Failed to load MPS file: {e}")
         exit(1)
 
-    # --- Run PDHG Solver on the GPU or CPU ---
+    # --- Run PDLP Solver on the GPU or CPU ---
     minimizer, objective_value, total_iterations, total_restarts, kkt_passes = pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=max_iter, tol=tol, verbose=verbose, restart_period=restart_period, precondition=precondition, primal_update=primal_update, adaptive_step=adaptive_step)
 
     if verbose:
