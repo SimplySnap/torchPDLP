@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from collections import defaultdict
-from time import perf_counter
+import time
 
 class Timer:
   """
@@ -18,16 +18,62 @@ class Timer:
       self.label = label
 
   def __enter__(self):
-      self.start = perf_counter()
+      self.start = time.perf_counter()
       return self
 
   def __exit__(self, *args):
-      self.end = perf_counter()
+      self.end = time.perf_counter()
       self.elapsed = self.end - self.start
       print(f"{self.label}: {self.elapsed:.6f} seconds")
 
+def sparse_vs_dense(A, device='cpu', kkt_passes=10):
+    """
+    Benchmarks matrix-vector multiplication using dense and sparse formats.
+    
+    Parameters:
+        A (torch.Tensor): 2D matrix (dense tensor)
+        device (str): 'cpu' or 'cuda'
+        kkt_passes (even int): Number of repetitions for matrix multiplication
 
-def mps_to_standard_form(mps_file, device='cpu', verbose=True):
+    Returns:
+        tensor A as either sparse or dense, which ever is faster
+    """
+    assert A.dim() == 2, "Input must be a 2D matrix"
+    m, n = A.shape
+    A = A.to(device)
+    
+     # Precompute random vectors for fair timing
+    vecs_n = [torch.randn(n, 1, device=device) for _ in range(kkt_passes // 2)]
+    vecs_m = [torch.randn(m, 1, device=device) for _ in range(kkt_passes // 2)]
+
+    # Dense timing
+    A_transpose = A.t()
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    start = time.time()
+    for vec_n, vec_m in zip(vecs_n, vecs_m):
+        _ = A @ vec_n
+        _ = A_transpose @ vec_m
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    dense_time = time.time() - start
+
+    # Sparse timing
+    A_sparse = A.to_sparse()
+    A_sparse_transpose = A_sparse.t()
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    start = time.time()
+    for vec_n, vec_m in zip(vecs_n, vecs_m):
+        _ = torch.sparse.mm(A_sparse, vec_n)
+        _ = torch.sparse.mm(A_sparse_transpose, vec_m)
+    if device == 'cuda':
+        torch.cuda.synchronize()
+    sparse_time = time.time() - start
+
+    return A_sparse if sparse_time < dense_time else A
+
+def mps_to_standard_form(mps_file, device='cpu', support_sparse=False, verbose=False):
     """
     Parses an MPS file and returns the standard form LP components as PyTorch tensors:
         minimize     cᵀx
@@ -37,7 +83,7 @@ def mps_to_standard_form(mps_file, device='cpu', verbose=True):
 
     Returns: c, G, h, A, b, l, u
     """
-    from helpers import sparse_vs_dense
+
 
     #Read MPS file
     with open(mps_file, 'r') as f:
@@ -213,10 +259,11 @@ def mps_to_standard_form(mps_file, device='cpu', verbose=True):
     
     K_tensor = torch.vstack(combined_matrix_list)
     q_tensor = torch.vstack(rhs)
-
-    # Check if sparse operations are faster
-    K_tensor = sparse_vs_dense(K_tensor, device=device, kkt_passes=10)
-    if verbose:
-      print("Using Sparse operations") if K_tensor.is_sparse else print("Using Dense operations")
     
+    if support_sparse:
+        # Check if sparse operations are faster
+        K_tensor = sparse_vs_dense(K_tensor, device=device, kkt_passes=10)
+        if verbose:
+            print("Using Sparse operations") if K_tensor.is_sparse else print("Using Dense operations")
+        
     return c_tensor, K_tensor, q_tensor, m_ineq, l_tensor, u_tensor
