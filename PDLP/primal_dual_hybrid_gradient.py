@@ -43,7 +43,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
 
     #  Initial step-size
     eta = 0.9 / spectral_norm_estimate_torch(K, num_iters=100)
-    omega = c_norm / q_norm if q_norm > 1e-6 and c_norm > 1e-6 else 1.0
+    omega = c_norm / q_norm if q_norm > 1e-6 and c_norm > 1e-6 else torch.tensor(1.0)
 
     theta = 1.0
 
