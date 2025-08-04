@@ -3,9 +3,9 @@ import pandas as pd
 import time
 import scipy.optimize as opt
 from collections import defaultdict
-import torch
 import os
 import sys
+import psutil
 
 def mps_to_standard_form(mps_file, device='cpu', verbose=True):
     """
@@ -188,21 +188,41 @@ def mps_to_standard_form(mps_file, device='cpu', verbose=True):
         u = None
         
     
-    return G,A,h,A,b,l,u,c
+    return G,A,h,b,l,u,c
+
+#  CPU allocation data
+def configure_cpu_allocation(num_cores=None):
+    if num_cores is None:
+        num_cores = int(os.environ.get('SLURM_CPUS_PER_TASK', psutil.cpu_count()))
+    
+    # Set threading environment variables
+    os.environ['OMP_NUM_THREADS'] = str(num_cores)
+    os.environ['OPENBLAS_NUM_THREADS'] = str(num_cores)
+    os.environ['MKL_NUM_THREADS'] = str(num_cores)
+    os.environ['NUMEXPR_NUM_THREADS'] = str(num_cores)
+    print(f"OMP_NUM_THREADS: {os.environ.get('OMP_NUM_THREADS')}")
+    print(f"SLURM_CPUS_PER_TASK: {os.environ.get('SLURM_CPUS_PER_TASK')}")       
+    
+    return num_cores
+
+#  Configure CPU allocation
+num_cores = configure_cpu_allocation()
 
 
+#  Results for outputted csv
 results = []
-
+#  Directory containing MPS files
 mps_folder = 'datasets/Netlib/feasible'
-
 #  List all files in the folder (adjust extension if needed)
 mps_files = [f for f in os.listdir(mps_folder) if f.endswith('.mps')]  
 
+
+# -------- Main Loop --------
 for mps_file in mps_files:
     mps_path = os.path.join(mps_folder, mps_file) #  Get directory path of the mps file
 
     #  Extract problem data
-    G,A,h,A,b,l,u,c = mps_to_standard_form(mps_path)
+    G,A,h,b,l,u,c = mps_to_standard_form(mps_path)
 
     
     start_time = time.time()
@@ -218,9 +238,13 @@ for mps_file in mps_files:
     results.append({
             'mps_file': mps_file,
             'time_taken_sec': elapsed_time,
-            'solution_found': result.success
+            'solution_found': result.success,
+            'objective_value': result.fun if result.success else None,
+            'iterations': result.nit if result.success else None,
+            'hostname' : os.uname().nodename
         })
     #  Convert results to a DataFrame
+
 df = pd.DataFrame(results)
 
 #  Save results to CSV

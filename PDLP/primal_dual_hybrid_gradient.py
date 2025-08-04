@@ -4,6 +4,31 @@ from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_a
 from enhancements import primal_weight_update
 
 def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None):
+    '''
+    Main PDLP algorithm implementation.
+    Args:
+        K (torch.Tensor): Constraint matrix.
+        m_ineq (int): Number of inequality constraints.
+        c (torch.Tensor): Coefficients for the primal objective.
+        q (torch.Tensor): Right-hand side vector for the constraints.
+        l (torch.Tensor): Lower bounds for the primal variable.
+        u (torch.Tensor): Upper bounds for the primal variable.
+        device (torch.device): Device to run the algorithm on (CPU or GPU).
+        max_iter (int): Maximum number of iterations.
+        tol (float): Tolerance for convergence.
+        verbose (bool): Whether to print detailed output.
+        restart_period (int): Number of iterations between restarts.
+        precondition (bool): Whether to use preconditioning.
+        primal_update (bool): Whether to perform primal weight updates.
+        adaptive (bool): Whether to use adaptive stepsize.
+        data_precond (tuple): Preconditioned data (D_col, D_row, K_unscaled, c_unscaled, q_unscaled, l_unscaled, u_unscaled) if precondition is True.
+
+    Returns:
+        x (torch.Tensor): Optimal primal variable.
+        prim_obj (float): Optimal primal objective value.
+        k (int): Total number of iterations.
+        n (int): Number of restart loops.
+    '''
     
     is_neg_inf = torch.isinf(l) & (l < 0)
     is_pos_inf = torch.isinf(u) & (u > 0)
@@ -16,6 +41,7 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
     q_norm = torch.linalg.norm(q, 2)
     c_norm = torch.linalg.norm(c, 2)
 
+    #  Initial step-size
     eta = 0.9 / spectral_norm_estimate_torch(K, num_iters=100)
     omega = c_norm / q_norm if q_norm > 1e-6 and c_norm > 1e-6 else 1.0
 
