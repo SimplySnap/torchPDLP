@@ -1,34 +1,12 @@
 import torch
+import time
 from primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg, fixed_one_step_pdhg
 from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_and_duality_gap, check_termination
 from enhancements import primal_weight_update
 
-def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None):
-    '''
-    Main PDLP algorithm implementation.
-    Args:
-        K (torch.Tensor): Constraint matrix.
-        m_ineq (int): Number of inequality constraints.
-        c (torch.Tensor): Coefficients for the primal objective.
-        q (torch.Tensor): Right-hand side vector for the constraints.
-        l (torch.Tensor): Lower bounds for the primal variable.
-        u (torch.Tensor): Upper bounds for the primal variable.
-        device (torch.device): Device to run the algorithm on (CPU or GPU).
-        max_iter (int): Maximum number of iterations.
-        tol (float): Tolerance for convergence.
-        verbose (bool): Whether to print detailed output.
-        restart_period (int): Number of iterations between restarts.
-        precondition (bool): Whether to use preconditioning.
-        primal_update (bool): Whether to perform primal weight updates.
-        adaptive (bool): Whether to use adaptive stepsize.
-        data_precond (tuple): Preconditioned data (D_col, D_row, K_unscaled, c_unscaled, q_unscaled, l_unscaled, u_unscaled) if precondition is True.
-
-    Returns:
-        x (torch.Tensor): Optimal primal variable.
-        prim_obj (float): Optimal primal objective value.
-        k (int): Total number of iterations.
-        n (int): Number of restart loops.
-    '''
+def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=100_000, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None, time_limit=3600, time_used=0):
+    
+    algorithm_start_time = time.time()
     
     is_neg_inf = torch.isinf(l) & (l < 0)
     is_pos_inf = torch.isinf(u) & (u > 0)
@@ -41,7 +19,6 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
     q_norm = torch.linalg.norm(q, 2)
     c_norm = torch.linalg.norm(c, 2)
 
-    #  Initial step-size
     eta = 0.9 / spectral_norm_estimate_torch(K, num_iters=100)
     omega = c_norm / q_norm if q_norm > 1e-6 and c_norm > 1e-6 else torch.tensor(1.0)
 
@@ -62,8 +39,11 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
     # Initialize Previous KKT Error
     KKT_first = 0 # The actual KKT error of the very first point doesn't matter since the artificial criteria will always hit anyway
     
+    # Status tracking
+    status = "Unsolved (KKT passes limit exceeded)"  # Default status if we exit due to KKT limit
+    
     # -------------- Outer Loop --------------
-    while k < max_iter:
+    while j < max_kkt:
         t = 0 # Initialize inner iteration counter
         
         # Initialize/Reset sums for averaging
@@ -76,12 +56,19 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
         y_last_restart = y.clone()
         
         # --------- Inner Loop ---------
-        while k < max_iter:
+        while j < max_kkt:
+            current_time = time.time()
+            elapsed_time = current_time - algorithm_start_time + time_used
+            if elapsed_time >= time_limit:
+                status = "Unsolved (Time limit exceeded)"
+                if verbose:
+                    print(f"Time limit exceeded")
+                break
             
             k += 1
             x_previous = x.clone() # For checking necessary criteria
             y_previous = y.clone()
-
+            
             if adaptive:
                 # Adaptive step of pdhg
                 x, y, eta, eta_hat, j = adaptive_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta, k, j)
@@ -130,7 +117,11 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
                     print(f"Artificial restart at iteration {t} using the", "Average iterate." if KKT_current >= KKT_average else "Current iterate.") if verbose else None
                     (x, y) = (x_avg, y_avg) if KKT_current >= KKT_average else (x, y)
                     break
+                
         # ------------- End Inner Loop ------------
+        if status == "Unsolved (Time limit exceeded)":
+            break
+        
         n += 1 # Increase restart loop counter
 
         if primal_update: # Primal weight update
@@ -157,9 +148,11 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
 
         # Termination conditions
         if check_termination(primal_residual, dual_residual, duality_gap, prim_obj, adjusted_dual, q_norm, c_norm, tol):
+            status = "Solved"
             if verbose:
               print(f"Converged at iteration {k} restart loop {n}")
             break
+        
     # ------------------- End Outer Loop ------------------------
-    
-    return x, prim_obj.cpu().item(), k, n, j
+    total_time_used = time.time() - algorithm_start_time + time_used
+    return x, prim_obj.cpu().item(), k, n, j, status, total_time_used
