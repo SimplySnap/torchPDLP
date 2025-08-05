@@ -1,7 +1,8 @@
 import argparse
 import torch
 import os
-from util import mps_to_standard_form, Timer
+import pandas as pd
+from util import mps_to_standard_form
 from enhancements import ruiz_precondition
 from primal_dual_hybrid_gradient import pdlp_algorithm
 
@@ -12,8 +13,8 @@ def parse_args():
                         help="Device to run on: 'cpu', 'gpu', or 'auto' (default: auto)")
     parser.add_argument('--instance_path', type=str, default='feasible',
                         help="Path to folder containing MPS instances (default: 'feasible')")
-    parser.add_argument('--tolerance', type=float, default=1e-2,
-                        help="Tolerance for stopping criterion (default: 1e-2)")
+    parser.add_argument('--tolerance', type=float, default=1e-4,
+                        help="Tolerance for stopping criterion (default: 1e-4)")
     parser.add_argument('--output_path', type=str, default='output',
                         help="Directory where outputs will be saved (default: 'output')")
     parser.add_argument('--precondition', action='store_true',
@@ -26,6 +27,10 @@ def parse_args():
                         help="Enable verbose output (default: False)")
     parser.add_argument('--support_sparse', action='store_true',
                         help="Support sparse matrices operations(default: False)")
+    parser.add_argument('--max_kkt', type=int, default=100_000,
+                        help="Maximum number of KKT passes (default: 100000)")
+    parser.add_argument('--time_limit', type=int, default=3600,
+                        help="Time limit for the solver in seconds (default: 3600)")
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -52,6 +57,19 @@ if __name__ == '__main__':
     adaptive_stepsize = args.adaptive_stepsize
     verbose=args.verbose
     support_sparse = args.support_sparse
+    max_kkt = args.max_kkt
+    time_limit = args.time_limit
+    
+    print(f"\nConfiguration:")
+    print(f"Instance path: {mps_folder_path}")
+    print(f"Tolerance: {tol}")
+    print(f"Output path: {output_path}")
+    print(f"Time limit: {time_limit} seconds")
+    print(f"Max KKT passes: {max_kkt}")
+    print(f"Preconditioning: {precondition}")
+    print(f"Primal weight update: {primal_weight_update}")
+    print(f"Adaptive stepsize: {adaptive_stepsize}")
+    
     results = []
     
     # --- Get all MPS files from the folder ---
@@ -69,37 +87,70 @@ if __name__ == '__main__':
                 'File': mps_file,
                 'Objective': 'N/A',
                 'Iterations (k)': 'N/A',
+                'Restarts (n)': 'N/A',
+                'KKT Passes (j)': 'N/A',
                 'Time (s)': 'N/A',
-                'Status': f'Failed to load: {e}'
+                'Status': f'Failed to load: {str(e)[:50]}...' if len(str(e)) > 50 else str(e)
             })
             continue
         
         try:
-            with Timer("Solve time") as t:
-                dt_precond = None #Needed if not preconditioning as otherwise pdlp will error
-                # PRECONDITION
-                if precondition:
-                    K, c, q, l, u, dt_precond = ruiz_precondition(c, K, q, l, u, device = device)
-                
-                x, prim_obj, k, n, j = pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=tol, verbose=True, restart_period=40, precondition=precondition,primal_update=primal_weight_update, adaptive=adaptive_stepsize, data_precond=dt_precond)
-                
-                print(f"Objective value: {prim_obj:.4f}")
-                
-            time_elapsed = t.elapsed
-            print(f"Took {time_elapsed:.4f} seconds.")
-
+            # PRECONDITION
+            if precondition:
+                K, c, q, l, u, dt_precond, time_used= ruiz_precondition(c, K, q, l, u, device = device)
+            else:
+                time_used = 0.0
+                dt_precond = None
+            
+            x, prim_obj, k, n, j, status, total_time = pdlp_algorithm(
+                K, m_ineq, c, q, l, u, device, 
+                max_kkt=max_kkt, tol=tol, verbose=verbose, restart_period=40, 
+                precondition=precondition, primal_update=primal_weight_update, 
+                adaptive=adaptive_stepsize, data_precond=dt_precond, 
+                time_limit=time_limit, time_used=time_used
+            )
+            print(f"Solver uses {total_time:.4f} seconds.")
+            print(f"Status: {status}")
+            
+            # Store results
+            results.append({
+                'File': mps_file,
+                'Objective': f"{prim_obj:.6f}",
+                'Iterations (k)': k,
+                'Restarts (n)': n,
+                'KKT Passes (j)': j,
+                'Time (s)': f"{total_time:.4f}",
+                'Status': status
+            })
+            
         except Exception as e:
             print(f"Solver failed for {mps_file}. Error: {e}")
-
-        #  Delete GPU cache to stop memory leaks
-        if device == 'gpu':
-            del c, K, q, l, u, x, dt_precond
-            torch.cuda.empty_cache()
+            results.append({
+                'File': mps_file,
+                'Objective': 'N/A',
+                'Iterations (k)': 'N/A',
+                'Restarts (n)': 'N/A',
+                'KKT Passes (j)': 'N/A',
+                'Time (s)': 'N/A',
+                'Status': f'Solver failed: {str(e)[:50]}...' if len(str(e)) > 50 else f'Solver failed: {str(e)}'
+            })
 
     # Create output directory if it doesn't exist
     os.makedirs(output_path, exist_ok=True)
 
-    # --- Call your solver/main logic here ---
-    print(f"Instance path: {mps_folder_path}")
-    print(f"Tolerance: {tol}")
-    print(f"Output path: {output_path}")
+    # Save results to Excel file
+    if results:
+        df = pd.DataFrame(results)
+        excel_filename = os.path.join(output_path, 'solver_results.xlsx')
+        
+        try:
+            df.to_excel(excel_filename, index=False, engine='openpyxl')
+                
+        except Exception as e:
+            print(f"Failed to save Excel file: {e}")
+            # Fallback to CSV if Excel fails
+            csv_filename = os.path.join(output_path, 'solver_results.csv')
+            df.to_csv(csv_filename, index=False)
+            print(f"Results saved to CSV instead: {csv_filename}")
+    else:
+        print("No results to save.")

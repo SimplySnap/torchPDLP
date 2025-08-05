@@ -1,4 +1,5 @@
 import torch
+import time
 
 def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     """
@@ -37,7 +38,7 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     - The scaling preserves feasibility and optimality but improves numerical conditioning.
     - You must rescale your solution after solving using D_col (and D_row if needed).
     """
-   
+    time_start = time.time()
     # --- Scaling Loop ---
     K_s, c_s, q_s, l_s, u_s = K.clone(), c.clone(), q.clone(), l.clone(), u.clone()
     m, n = K_s.shape
@@ -64,8 +65,10 @@ def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
     q_s *= D_row
     l_s /= D_col
     u_s /= D_col
+    
+    time_used = time.time() - time_start
 
-    return K_s, c_s, q_s, l_s, u_s, (D_col, D_row, K, c, q, l, u)
+    return K_s, c_s, q_s, l_s, u_s, (D_col, D_row, K, c, q, l, u), time_used
 
 def primal_weight_update(x_prev, x, y_prev, y, omega, smooth_theta):
     diff_y_norm = torch.linalg.norm(y_prev - y, 2)
