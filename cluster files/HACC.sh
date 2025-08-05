@@ -1,11 +1,11 @@
 #!/bin/bash
 #
-#SBATCH --job-name=pytorch_job     # Name for your job
-#SBATCH --output=pytorch_%j.out   # File to save job's standard output
-#SBATCH --error=pytorch_%j.err     # File to save job's standard error
+#SBATCH --job-name=small_lp_pdlp     # Name for your job
+#SBATCH --output=small_lp_pdlp_%j.out   # File to save job's standard output
+#SBATCH --error=small_lp_pdlp%j.err     # File to save job's standard error
 #SBATCH --partition=debug          # The partition to run on
 #SBATCH --cpus-per-task=4          # Number of CPUs per task
-#SBATCH --mem=8G                   # Memory allocation
+#SBATCH --mem=80G                   # Memory allocation
 #SBATCH --gpus=mi210:1             # Request 1 MI210 GPU
 
 #=========================================================================================
@@ -25,7 +25,7 @@ rocminfo | grep "Device Type" -A 5
 python -c "import torch; print(f'PyTorch CUDA available: {torch.cuda.is_available()}'); print(f'Device: {torch.cuda.get_device_name(0)}')"
 
 # 4. Run your python script
-echo "### Executing netlib_gpu_tol_copy.py..."
-python -u netlib_gpu_tol_test.py
+echo "### Executing main.py..."
+python -u PDLP/main.py
 
 echo "### Job finished at $(date)"

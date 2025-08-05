@@ -76,6 +76,7 @@ if __name__ == '__main__':
         
         try:
             with Timer("Solve time") as t:
+                dt_precond = None #Needed if not preconditioning as otherwise pdlp will error
                 # PRECONDITION
                 if precondition:
                     K, c, q, l, u, dt_precond = ruiz_precondition(c, K, q, l, u, device = device)
@@ -86,8 +87,14 @@ if __name__ == '__main__':
                 
             time_elapsed = t.elapsed
             print(f"Took {time_elapsed:.4f} seconds.")
+
         except Exception as e:
             print(f"Solver failed for {mps_file}. Error: {e}")
+
+        #  Delete GPU cache to stop memory leaks
+        if device == 'gpu':
+            del c, K, q, l, u, x, dt_precond
+            torch.cuda.empty_cache()
 
     # Create output directory if it doesn't exist
     os.makedirs(output_path, exist_ok=True)

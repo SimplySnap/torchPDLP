@@ -3,9 +3,9 @@
 #SBATCH --job-name=scipy_bench_1.1    # Name for your job
 #SBATCH --output=scipy_bench_1.1%j.out   # File to save job's standard output
 #SBATCH --error=scipy_bench_1.1%j.err     # File to save job's standard error
-#SBATCH --time=02:00:00             # 2 hour time limit
+#SBATCH --time=06:00:00             # 2 hour time limit
 #SBATCH --partition=debug          # The partition to run on
-#SBATCH --cpus-per-task=32         # Number of CPUs/threads YES THREADS per task
+#SBATCH --cpus-per-task=16         # Number of CPUs/threads YES THREADS per task
 #SBATCH --mem=40G                   # Memory allocation
 
 #=========================================================================================
