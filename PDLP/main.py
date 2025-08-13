@@ -104,12 +104,17 @@ if __name__ == '__main__':
                 time_used = 0.0
                 dt_precond = None
             
+            #  FISHNET starting point optimimzation
+            fishnet_time = 0.0
             if args.fishnet:
                 x0, y0 = fishnet.spectral_cast(
                 K, c, q, l, u, m_ineq, k=32,  # your choice of hyperparameters
                 device=device
             )
-
+            #  Record fishnet speedup
+                fishnet_time = time.time() - fishnet_start
+                time_used += fishnet_time  # Add to cumulative preprocessing time
+                print(f"Fishnet completed in {fishnet_time:.4f}s")
             else:
                 x0, y0 = None, None
 
