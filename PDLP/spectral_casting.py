@@ -24,7 +24,7 @@ def spectral_cast(K,c,q,l,u,m_ineq,k,s=2,i=5,device="cpu"):
         tuple[torch.Tensor, torch.Tensor]: x, y — promising primal and dual starting points.
     '''
     pts, radius = sample_points(K,i) #  Cast points randomly around primal-ball
-    start_x, start_y = fishnet(pts,K,c,q,l,u,m_ineq,i,s,k,device)
+    start_x, start_y = fishnet(pts,K,c,q,l,u,m_ineq,s,k,device)
 
     return start_x, start_y
 
@@ -48,14 +48,14 @@ def sample_points(K,i,device="cpu"):
     dim = K.shape[1] #Get num columns for casting
     j = 2**i #Number of points based on i
 
-    points = torch.normal(size=(dim,j),device=device) #  j points, each of length dim in primal-space
+    points = torch.randn(size=(dim,j),device=device) #  j points, each of length dim in primal-space
 
     #  Center on the positive diagonal so the sphere touches axes but never crosses
     centre = (r / dim ** 0.5) * torch.ones((dim, 1), device=device)
 
     #  Cast points around ball
     #  Normalize points to fit unit n-sphere, then scale by spectral radius
-    points = points*r / torch.norm(points, dim=0, keepdim=True, device=device) 
+    points = points*r / torch.norm(points, dim=0, keepdim=True) 
     
     points += centre #  Translate to centre AT END of scaling
 
@@ -117,7 +117,13 @@ def fishnet(pts,K,c,q,l,u,m_ineq,s=2,k=32, device="cpu"):
             midpoint = pts.mean(dim=1, keepdim=True)      # shape: (n, 1)
             midpoint_y = pts_y.mean(dim=1, keepdim=True)      # shape: (n, 1)
             
-            #  We append these later so they don't interfere with breeding
+            #  We append these later so they don't interfere with breeding 
+            #  (both shape and information interference)
+
+            #  Create lists to collect new points
+            new_pts = []
+            new_pts_y = []
+
 
             #  No we cast random combinations of our remaining points 
             for t in range(old_j-new_j-1):
@@ -128,17 +134,22 @@ def fishnet(pts,K,c,q,l,u,m_ineq,s=2,k=32, device="cpu"):
 
                 #  Compute convex combinations for primal and dual points
                 new_pt = (pts @ weights.view(-1,1)).squeeze(1)      #  shape (n)
-                new_pt_y = (pts_y * weights.view(-1,1)).squeeze(1)  #  shape (m)
+                new_pt_y = (pts_y @ weights.view(-1,1)).squeeze(1)  #  shape (m)
 
                 #  Add as new column
-                pts = torch.cat([pts,new_pt.unsqueeze(1)], dim=1)
-                pts_y = torch.cat([pts_y,new_pt_y.unsqueeze(1)], dim=1)
+                # Collect the new points
+                new_pts.append(new_pt.unsqueeze(1))
+                new_pts_y.append(new_pt_y.unsqueeze(1))
 
-            #  Append midpoints as new columns
-            pts = torch.cat([pts,midpoint],dim=1)
-            pts_y = torch.cat([pts_y,midpoint_y],dim=1)
-
-
+            #  Concatenate all new points at once
+            if new_pts:  #  Only if we have new points to add
+                all_new_pts = torch.cat(new_pts, dim=1)  #  shape: (n, num_new_points)
+                all_new_pts_y = torch.cat(new_pts_y, dim=1)  #  shape: (m, num_new_points)
+                
+                #  Append all new points and midpoint
+                pts = torch.cat([pts, all_new_pts, midpoint], dim=1)
+                pts_y = torch.cat([pts_y, all_new_pts_y, midpoint_y], dim=1)
+            
         j = pts.shape[1]
         i+=1 #  Add to index
 
@@ -203,33 +214,34 @@ def get_best_pts(K,pts,pts_y,c,q,l,u,is_pos_inf,is_neg_inf,s=2):
 
     #  Primal and dual objective 1D tensors
     grad = c - K.T @ pts_y
-    prim_obj = torch.matmul(c, pts)      #  shape: (num_points,)
-    dual_obj = torch.matmul(q, pts_y)    #  shape: (num_points,)
+    prim_obj = torch.matmul(c.T, pts)      #  shape: (num_points,)
+    dual_obj = torch.matmul(q.T, pts_y)    #  shape: (num_points,)
 
     duality_gap = [] #  initialize duality gap vector
     #  Loop over columns/points to create duality gap vector
     for i in range(grad.shape[1]):
-        lam = project_lambda_box(grad[:, i], is_neg_inf, is_pos_inf)  # 1D
+        grad_column = grad[:,i].unsqueeze(1) #  Single grad column - corresponds to grad
+        lam = project_lambda_box(grad_column, is_neg_inf, is_pos_inf)  # 1D
         lam_pos = (l_dual * torch.clamp(lam, min=0.0)).sum()
         lam_neg = (u_dual * torch.clamp(lam, max=0.0)).sum()
-        adjusted_dual = dual_obj[i] + lam_pos + lam_neg
-        gap = adjusted_dual - prim_obj[i]
+        adjusted_dual = dual_obj[0, i] + lam_pos + lam_neg
+        gap = adjusted_dual - prim_obj[0, i]
         duality_gap.append(gap)
 
-        duality_gap = torch.stack(duality_gap)  # shape: (num_points,)
+    duality_gap = torch.stack(duality_gap)  #  shape: (num_points,)
     
 
     #  Step 2 : Sort vectors
     sorted_indices = torch.argsort(duality_gap) #  Get indices in ascending order
     pts = pts[:,sorted_indices]
-    pts_y = pts[:,sorted_indices]
+    pts_y = pts_y[:,sorted_indices]
 
     #  Step 3 : Chop vectors
 
     #  n - number of columns 
     _, n = pts.shape
 
-    num_cols = int(torch.floor(n / s).clamp(min=1).item()) #  s parameter controls how much we chop at each stage
+    num_cols = max(1,n//s) #  s parameter controls how much we chop at each stage
 
     pts = pts[:,:num_cols] #  Chop s.t first 1/s proportion of points remain
     pts_y = pts_y[:,:num_cols]
@@ -260,16 +272,16 @@ def PDHG_step(K,pts,pts_y,c,q,l,u,eta,omega,m_ineq,device="cpu"):
     pts_old = pts.clone()
     K_t_y_pts = K.T @ pts_y #  Matrix containing grads for all y points around k-sphere
     #  Calculate grad for all said points
-    grad_y_pts = K_t_y_pts + c.unsqueeze(1) #  mrow
+    grad_y_pts = c - K_t_y_pts #  mrow
 
     #  Clamp new x points to get new vector
-    pts = torch.clamp(pts - ((eta / omega) * grad_y_pts), min = l.unsqueeze(1), max = u.unsqueeze(1))
+    pts = torch.clamp(pts - ((eta / omega) * grad_y_pts), min = l, max = u)
 
     x_bar_pts = 2*pts - pts_old #  Momentum for stability
 
     #  Get new y points
     K_x = K @ x_bar_pts
-    pts_y += eta * omega * (q.unsqueeze(1) - K_x)
+    pts_y += eta * omega * (q - K_x)
 
     #  Clamp the for inequality bounds in dual
     if m_ineq > 0:
