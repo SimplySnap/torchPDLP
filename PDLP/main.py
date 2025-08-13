@@ -5,6 +5,7 @@ import pandas as pd
 from util import mps_to_standard_form
 from enhancements import ruiz_precondition
 from primal_dual_hybrid_gradient import pdlp_algorithm
+import spectral_casting as fishnet
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
@@ -31,6 +32,7 @@ def parse_args():
                         help="Maximum number of KKT passes (default: 100000)")
     parser.add_argument('--time_limit', type=int, default=3600,
                         help="Time limit for the solver in seconds (default: 3600)")
+    parser.add_argument('--fishnet', action='store_true',help="Use fishnet alg for better startpoint")
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -102,12 +104,22 @@ if __name__ == '__main__':
                 time_used = 0.0
                 dt_precond = None
             
+            if args.fishnet:
+                x0, y0 = fishnet.spectral_cast(
+                K, c, q, l, u, m_ineq, k=32,  # your choice of hyperparameters
+                device=device
+            )
+
+            else:
+                x0, y0 = None, None
+
             x, prim_obj, k, n, j, status, total_time = pdlp_algorithm(
-                K, m_ineq, c, q, l, u, device, 
-                max_kkt=max_kkt, tol=tol, verbose=verbose, restart_period=40, 
-                precondition=precondition, primal_update=primal_weight_update, 
-                adaptive=adaptive_stepsize, data_precond=dt_precond, 
-                time_limit=time_limit, time_used=time_used
+                K, m_ineq, c, q, l, u, device,
+                max_kkt=max_kkt, tol=tol, verbose=verbose, restart_period=40,
+                precondition=precondition, primal_update=primal_weight_update,
+                adaptive=adaptive_stepsize, data_precond=dt_precond,
+                time_limit=time_limit, time_used=time_used,
+                x_init=x0, y_init=y0  # <-- Pass x0, y0 here, always
             )
             print(f"Solver uses {total_time:.4f} seconds.")
             print(f"Status: {status}")
