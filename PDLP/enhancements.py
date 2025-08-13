@@ -1,7 +1,7 @@
 import torch
 import time
 
-def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):
+def ruiz_precondition(c, K, q, l, u, device='cpu', max_iter=20, eps=1e-6):x
     """
     Performs Ruiz equilibration (scaling) on the standard-form linear program using GPU tensors.
 
