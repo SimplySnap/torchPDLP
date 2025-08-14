@@ -23,7 +23,7 @@ def spectral_cast(K,c,q,l,u,m_ineq,k,s=2,i=5,device="cpu"):
     Returns:
         tuple[torch.Tensor, torch.Tensor]: x, y — promising primal and dual starting points.
     '''
-    pts, radius = sample_points(K,i) #  Cast points randomly around primal-ball
+    pts, radius = sample_points(K,i,device) #  Cast points randomly around primal-ball
     start_x, start_y = fishnet(pts,K,c,q,l,u,m_ineq,s,k,device)
 
     return start_x, start_y
@@ -97,6 +97,7 @@ def fishnet(pts,K,c,q,l,u,m_ineq,s=2,k=32, device="cpu"):
     '''
     #  Get starting y points and other vars
     pts_y = K @ pts
+    count = pts.shape[1]
     eta,omega,is_pos_inf,is_neg_inf, = init_PDHG_vars(K,c,q,l,u)
 
     i = 0 #  Counter for while loop, also tracks parity for breeding
@@ -105,8 +106,10 @@ def fishnet(pts,K,c,q,l,u,m_ineq,s=2,k=32, device="cpu"):
         for _ in range(k):
             #  Run PDHG j times
             pts, pts_y = PDHG_step(K,pts,pts_y,c,q,l,u,eta,omega,m_ineq,device)
+            
         #  Now, we evaluate top s proportion of points
         old_j = pts.shape[1]
+        count += 2*pts.shape[1]*k #  For counting KKT passes - pts,pts_y KKT passes
         pts,pts_y = get_best_pts(K,pts,pts_y,c,q,l,u,is_pos_inf,is_neg_inf,s)
         new_j = pts.shape[1]
 

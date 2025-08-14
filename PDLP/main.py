@@ -159,7 +159,7 @@ if __name__ == '__main__':
     if results:
         df = pd.DataFrame(results)
         data_filename = os.path.join(output_path, 'solver_results.csv')
-        print(f"Failed to save Excel file: {e}")
+        #print(f"Failed to save Excel file: {e}")
         df.to_csv(data_filename, index=False)
         print(f"Results saved to CSV instead: {data_filename}")
 
