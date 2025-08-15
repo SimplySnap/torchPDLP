@@ -346,7 +346,6 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4, ve
                         bounds_ok = True
                         for i in range(x.shape[0]):
                             dx_i = dx[i].item()
-                            c_i = c[i].item()
                             l_i = l[i].item()
                             u_i = u[i].item()
                             if not (
