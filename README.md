@@ -1,4 +1,4 @@
-# PDLP-AMD-RIPS
+# torchPDLP
 Repo containing code for an AMD GPU implementation of Primal Dual Linear Programming (PDLP) algorithm. In collaboration with AMD and Institute for Pure and Applied Mathematics @UCLA
 
 This project investigates the acceleration of LP optimization on AMD GPUs using the ROCm platform and HIP to exploit fine-grained parallelism and high memory bandwidth. The core focus is the development of a robust, high-performance, open-source implementa-
