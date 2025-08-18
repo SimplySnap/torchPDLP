@@ -1,10 +1,10 @@
 import torch
 import time
 from primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg, fixed_one_step_pdhg
-from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_and_duality_gap, check_termination
-from enhancements import primal_weight_update
+from helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_and_duality_gap, check_termination, project_lambda_box
+from enhancements import primal_weight_update, detect_infeasibility
 
-def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=100_000, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None, time_limit=3600, time_used=0):
+def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=100_000, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None, infeasibility_detect=False, infeas_tol=1e-4, time_limit=3600, time_used=0):
     
     algorithm_start_time = time.time()
     
@@ -30,6 +30,10 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=100_000, tol=1e-4, ver
     # Initialize primal and dual
     x = torch.zeros((c.shape[0], 1), device=device)
     y = torch.zeros((K.shape[0], 1), device=device)
+    
+    # Infeasibility detection variables
+    if infeasibility_detect:
+        lam_prev = torch.zeros_like(x)
 
     # Counters
     n = 0 # Outer Loop Counter
@@ -76,7 +80,22 @@ def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=100_000, tol=1e-4, ver
                 # Fixed step of pdhg
                 x, y, eta, eta_hat= fixed_one_step_pdhg(x, y, c, q, K, l, u, m_ineq, eta, omega, theta)
                 j += 1
-           
+                
+            # Infeasibility detection
+            if infeasibility_detect and k > 1:  # Need at least two points
+                lam = project_lambda_box(c - K.T @ y, is_neg_inf, is_pos_inf)
+                infeas_status = detect_infeasibility(x, y, x_previous, y_previous, lam, lam_prev, 
+                                                   c, q, K, l, u, m_ineq, device, infeas_tol)
+                j+=1
+                if infeas_status:
+                    prim_obj = c.T @ x
+                    status = infeas_status
+                    if verbose:
+                        print(f"[PDLP] {infeas_status} detected at iteration {k}")
+                    total_time_used = time.time() - algorithm_start_time + time_used
+                    return x, prim_obj.cpu().item(), k, n, j, status, total_time_used
+                lam_prev = lam.clone()  # Update previous lambda for next iteration
+               
             # Increase iteration counters
             t += 1
 

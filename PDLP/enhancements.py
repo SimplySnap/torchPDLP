@@ -76,3 +76,86 @@ def primal_weight_update(x_prev, x, y_prev, y, omega, smooth_theta):
     if diff_x_norm > 0 and diff_y_norm > 0:
         omega = torch.exp(smooth_theta * (torch.log(diff_y_norm/diff_x_norm)) + (1-smooth_theta)*torch.log(omega))
     return omega
+
+def detect_infeasibility(x, y, x_prev, y_prev, lam, lam_prev, c, q, K, l, u, m_ineq, device, tol=1e-2):
+    """
+    Detect primal and dual infeasibility using current and previous iterates.
+    
+    Args:
+        x: Current primal variable
+        y: Current dual variable  
+        x_prev: Previous primal variable
+        y_prev: Previous dual variable
+        lam_prev: Previous lambda (projected gradient)
+        c: Primal objective coefficients
+        q: Dual objective coefficients (RHS)
+        K: Constraint matrix
+        l: Lower bounds
+        u: Upper bounds
+        m_ineq: Number of inequality constraints
+        is_neg_inf: Boolean mask for negative infinite bounds
+        is_pos_inf: Boolean mask for positive infinite bounds
+        device: Torch device
+        tol: Combined tolerance for all infeasibility checks
+    
+    Returns:
+        str or None: "DUAL_INFEASIBLE", "PRIMAL_INFEASIBLE", or None if feasible
+    """
+    
+    # Compute current lambda and differences
+    dx = x - x_prev
+    dy = y - y_prev
+    dlam = lam - lam_prev
+    
+    # Dual infeasibility (primal unbounded) detection
+    dlam_plus = (-dlam).clamp(min=0)
+    dlam_minus = dlam.clamp(min=0)
+    
+    # Check dual infeasibility conditions
+    # Check equality constraint: A @ dx = 0 (using norm < tol)
+    equality_ok = (K[m_ineq:] @ dx).norm() < tol
+    
+    # Check inequality constraint: G @ dx >= -tol  
+    inequality_ok = torch.all(K[:m_ineq] @ dx >= -tol)
+    
+    # Check objective condition: c^T @ dx < 0
+    objective_ok = (c.T @ dx) < tol
+    
+    if equality_ok and inequality_ok and objective_ok:
+        bounds_ok = True
+        for i in range(x.shape[0]):
+            dx_i = dx[i]
+            c_i = c[i]
+            l_i = l[i]
+            u_i = u[i]
+            
+            if not(
+                (not torch.isinf(l[i]) and not torch.isinf(u[i]) and torch.abs(dx_i) <= tol) or
+                (u_i == float('inf') and c_i >= 0 and dx_i >= -tol) or
+                (l_i == -float('inf') and c_i <= 0 and dx_i <= tol)
+            ):
+                bounds_ok = False
+                break
+        
+        if bounds_ok:
+            return "DUAL_INFEASIBLE"
+    
+    # Primal infeasibility (dual unbounded) detection
+    # Compute dual residual: G^T @ dy_in + A^T @ dy_eq - dlam
+    dual_res = K[:m_ineq].T @ dy[:m_ineq] + K[m_ineq:].T @ dy[m_ineq:] - dlam
+    
+    if dual_res.norm() < tol and torch.all(dy[:m_ineq] >= -tol):
+        dual_combo = (q[:m_ineq].T @ dy[:m_ineq]).item() + (q[m_ineq:].T @ dy[m_ineq:]).item()
+        
+        finite_l = (~torch.isinf(l).view(-1)) & (l.view(-1) != 0)
+        finite_u = (~torch.isinf(u).view(-1)) & (u.view(-1) != 0)
+        
+        if finite_l.any():
+            dual_combo -= (l[finite_l].view(1, -1) @ dlam_minus[finite_l].view(-1, 1)).item()
+        if finite_u.any():
+            dual_combo -= (u[finite_u].view(1, -1) @ dlam_plus[finite_u].view(-1, 1)).item()
+        
+        if dual_combo > -tol:
+            return "PRIMAL_INFEASIBLE"
+    
+    return None
