@@ -38,7 +38,7 @@ def LPSolver(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_w
         device = torch.device(device)
         print(f"PyTorch is using device: {device}")
 
-    if verbe:
+    if verbose:
       print(f"\nConfiguration:")
       print(f"Instance path: {mps_folder_path}")
       print(f"Tolerance: {tol}")
@@ -52,7 +52,7 @@ def LPSolver(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_w
     
     try:
         # --- Load problem ---
-        c, K, q, m_ineq, l, u= mps_to_standard_form(mps_file_path, device=device, support_sparse=support_sparse, verbe=verbe)
+        c, K, q, m_ineq, l, u= mps_to_standard_form(mps_file_path, device=device, support_sparse=support_sparse, verbe=verbose)
     except Exception as e:
         print(f"Failed to load MPS file: {mps_file_path}. Error: {e}")
 
