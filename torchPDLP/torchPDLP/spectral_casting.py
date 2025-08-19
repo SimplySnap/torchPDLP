@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from helpers import spectral_norm_estimate_torch, spectral_norm_estimate_torch, project_lambda_box
+from .helpers import spectral_norm_estimate_torch, spectral_norm_estimate_torch, project_lambda_box
 
 def spectral_cast(K,c,q,l,u,m_ineq,k,s=2,i=5,device="cpu"):
     '''
