@@ -52,7 +52,7 @@ def LPSolver(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_w
     
     try:
         # --- Load problem ---
-        c, K, q, m_ineq, l, u= mps_to_standard_form(mps_file_path, device=device, support_sparse=support_sparse, verbe=verbose)
+        c, K, q, m_ineq, l, u= mps_to_standard_form(mps_file_path, device=device, support_sparse=support_sparse, verbose=verbose)
     except Exception as e:
         print(f"Failed to load MPS file: {mps_file_path}. Error: {e}")
 
@@ -67,7 +67,7 @@ def LPSolver(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_w
         
         x, prim_obj, k, n, j, status, total_time = pdlp_algorithm(
             K, m_ineq, c, q, l, u, device, 
-            max_kkt=max_kkt, tol=tol, verbe=verbose, restart_period=40, 
+            max_kkt=max_kkt, tol=tol, verbose=verbose, restart_period=40, 
             precondition=precondition, primal_update=primal_weight_update, 
             adaptive=adaptive_stepsize, data_precond=dt_precond, 
             infeasibility_detect=infeasibility_detect,
