@@ -2,6 +2,8 @@ import argparse
 import torch
 import os
 import pandas as pd
+import time
+import spectral_casting as fishnet
 from util import mps_to_standard_form
 from enhancements import preconditioning
 from primal_dual_hybrid_gradient import pdlp_algorithm
@@ -33,6 +35,7 @@ def parse_args():
                         help="Maximum number of KKT passes (default: 100000)")
     parser.add_argument('--time_limit', type=int, default=3600,
                         help="Time limit for the solver in seconds (default: 3600)")
+    parser.add_argument('--fishnet', action='store_true',help="Use fishnet alg for better startpoint")
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -101,10 +104,28 @@ if __name__ == '__main__':
         try:
             # PRECONDITION
             if precondition:
-                K, c, q, l, u, dt_precond, time_used= preconditioning(c, K, q, l, u, device = device)
+                K, c, q, l, u, dt_precond, time_used = preconditioning(c, K, q, l, u, device = device)
             else:
                 time_used = 0.0
                 dt_precond = None
+
+            #  Fishnet initialization
+            #  FISHNET starting point optimimzation
+            if args.fishnet:
+                fishnet_time = 0.0 #  For time tracking
+                fishnet_start = time.time()
+                x0, y0 = fishnet.spectral_cast(
+                K, c, q, l, u, m_ineq, k=32,  # your choice of hyperparameters
+                device=device
+            )
+            #  Record fishnet speedup
+                fishnet_time = time.time() - fishnet_start #  Get the time taken by fishnet
+                time_used += fishnet_time  # Add to cumulative preprocessing time
+                if verbose:
+                    print(f"Fishnet completed in {fishnet_time:.4f}s")
+            else:
+                x0, y0 = None, None
+
             
             x, prim_obj, k, n, j, status, total_time = pdlp_algorithm(
                 K, m_ineq, c, q, l, u, device, 
@@ -112,7 +133,7 @@ if __name__ == '__main__':
                 precondition=precondition, primal_update=primal_weight_update, 
                 adaptive=adaptive_stepsize, data_precond=dt_precond, 
                 infeasibility_detect=infeasibility_detect,
-                time_limit=time_limit, time_used=time_used
+                time_limit=time_limit, time_used=time_used, x_init=x0, y_init=y0
             )
             print(f"Solver uses {total_time:.4f} seconds.")
             print(f"Status: {status}")
