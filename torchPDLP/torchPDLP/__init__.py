@@ -1,3 +1,3 @@
-from .main import LPSolver
+from .main import solve
 
-__all__ = ["LPSolver"]
+__all__ = ["solve"]
