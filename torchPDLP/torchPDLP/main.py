@@ -6,7 +6,7 @@ from enhancements import preconditioning
 from primal_dual_hybrid_gradient import pdlp_algorithm
 
 
-def torchPDLP(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weight_update = True, adaptive_stepsize = True, infeasibility_detect = False, verbose=False, support_sparse = False, max_kkt = 100000, time_limit=3600):
+def LPSolver(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weight_update = True, adaptive_stepsize = True, infeasibility_detect = False, verbose=False, support_sparse = False, max_kkt = 100000, time_limit=3600):
   '''
   Run LP solver with configuration options.
 
