@@ -5,27 +5,27 @@ from .primal_dual_hybrid_gradient import pdlp_algorithm
 
 
 def LPSolver(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weight_update = True, adaptive_stepsize = True, infeasibility_detect = False, verbose=False, support_sparse = False, max_kkt = 100000, time_limit=3600):
-  '''
-  Run LP solver with configuration options.
-
-  Args:
-    mps_file_path: Path to LP in MPS file format.
-    tol: Error tolerance (default 1e-4)
-    device: 'cpu', 'gpu', or 'auto' (default 'auto')
-    precondition: Precondtion the LP before solving (default True)
-    primal_weight_update: Update primal weights at every restart (default True)
-    adaptive_stepsize: Adapt the step size every iteration (default True)
-    infeasibility_detect: Check if iterates give infeasibility certificate (default False)
-    verbose: Output information on the solver (default False)
-    support_sparse: Use sparse tensors if they are beneficial (default False)
-    max_kkt: Maximum KKT passes solver will use (default 100000)
-    time_limit: Maximum time in seconds that solver will run (default 3600)
-  Returns:
-    minimizer solution to primal LP
-    Primal objective value
-    Status of solver (Solved, Unsolved)
-  '''
-
+    '''
+    Run LP solver with configuration options.
+  
+    Args:
+      mps_file_path: Path to LP in MPS file format.
+      tol: Error tolerance (default 1e-4)
+      device: 'cpu', 'gpu', or 'auto' (default 'auto')
+      precondition: Precondtion the LP before solving (default True)
+      primal_weight_update: Update primal weights at every restart (default True)
+      adaptive_stepsize: Adapt the step size every iteration (default True)
+      infeasibility_detect: Check if iterates give infeasibility certificate (default False)
+      verbose: Output information on the solver (default False)
+      support_sparse: Use sparse tensors if they are beneficial (default False)
+      max_kkt: Maximum KKT passes solver will use (default 100000)
+      time_limit: Maximum time in seconds that solver will run (default 3600)
+    Returns:
+      minimizer solution to primal LP
+      Primal objective value
+      Status of solver (Solved, Unsolved)
+    '''
+    
     # --- Device Selection ---
     if device == 'auto' or device == 'gpu':
         if torch.cuda.is_available():
