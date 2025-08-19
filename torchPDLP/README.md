@@ -16,7 +16,7 @@ pip install torchPDLP
 
 Or install directly from GitHub:
 ```bash
-pip install git+https://github.com/SimplySnap/torchPDLP.git
+pip install git+https://github.com/SimplySnap/torchPDLP.git@pypi-package#subdirectory=torchPDLP
 ```
 
 ## Usage
