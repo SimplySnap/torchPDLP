@@ -132,7 +132,7 @@ if __name__ == '__main__':
                 precondition=precondition, primal_update=primal_weight_update, 
                 adaptive=adaptive_stepsize, data_precond=dt_precond, 
                 infeasibility_detect=infeasibility_detect,
-                time_limit=time_limit, time_used=time_used
+                time_limit=time_limit, time_used=time_used,x_init=x0,y_init=y0
             )
             print(f"Solver uses {total_time:.4f} seconds.")
             print(f"Status: {status}")
