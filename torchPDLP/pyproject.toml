@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torchPDLP"
+version = "0.1.0"
+description = "Uses the restarted PDHG algorithm with enhancements to solve primal-dual linear programs."
+authors = [
+    {name = "Xiyan Hu"},
+    {name = "Titus Parker"},
+    {name = "Connor Phillips"},
+    {name = "Yifa Yu"}
+]
+license = {text = "MIT"}
+dependencies = ["numpy", "torch"]
+readme = "README.md"
+keywords = ["optimization", "primal-dual", "linear programming", "PDHG", "torch"]
+urls = {Homepage = "https://github.com/SimplySnap/torchPDLP"}
+requires-python = ">=3.6"
