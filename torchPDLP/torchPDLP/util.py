@@ -120,6 +120,8 @@ def mps_to_standard_form(mps_file, device='cpu', support_sparse=False, verbose=F
         elif line == 'BOUNDS':
             section = 'BOUNDS'
             continue
+        elif "'MARKER'" in line.split():
+            continue
 
         tokens = line.split()
         if section == 'ROWS':
@@ -151,17 +153,18 @@ def mps_to_standard_form(mps_file, device='cpu', support_sparse=False, verbose=F
 
         elif section == 'BOUNDS':
             bound_type, _, var_name = tokens[:3]
-            val = float(tokens[3]) if len(tokens) > 3 else None
-            if bound_type == 'LO':
-                bound_data[var_name]['lo'] = val
-            elif bound_type == 'UP':
-                bound_data[var_name]['up'] = val
-            elif bound_type == 'FX':
-                bound_data[var_name]['lo'] = val
-                bound_data[var_name]['up'] = val
-            elif bound_type == 'FR':
-                bound_data[var_name]['lo'] = 0.0
-                bound_data[var_name]['up'] = float('inf')
+            if bound_type in ['LO', 'UP', 'FX', 'FR']:
+                val = float(tokens[3]) if len(tokens) > 3 else None
+                if bound_type == 'LO':
+                    bound_data[var_name]['lo'] = val
+                elif bound_type == 'UP':
+                    bound_data[var_name]['up'] = val
+                elif bound_type == 'FX':
+                    bound_data[var_name]['lo'] = val
+                    bound_data[var_name]['up'] = val
+                elif bound_type == 'FR':
+                    bound_data[var_name]['lo'] = 0.0
+                    bound_data[var_name]['up'] = float('inf')
 
     # Final variable ordering and index mapping
     var_index = {v: i for i, v in enumerate(var_names)}
