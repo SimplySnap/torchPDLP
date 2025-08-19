@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "torchPDLP"
 version = "0.1.0"
-description = "Uses the restarted PDHG algorithm with enhancements to solve primal-dual linear programs."
+description = "Uses a PyTorch-implemented restarted PDHG algorithm with enhancements to solve primal-dual linear programs."
 authors = [
     {name = "Xiyan Hu"},
     {name = "Titus Parker"},
@@ -13,7 +13,7 @@ authors = [
     {name = "Yifa Yu"}
 ]
 license = {text = "MIT"}
-dependencies = ["numpy", "torch"]
+dependencies = ["numpy", "torch","pandas"]
 readme = "README.md"
 keywords = ["optimization", "primal-dual", "linear programming", "PDHG", "torch"]
 urls = {Homepage = "https://github.com/SimplySnap/torchPDLP"}
