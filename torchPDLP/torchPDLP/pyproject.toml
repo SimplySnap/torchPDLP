@@ -1,2 +1,0 @@
-[project.scripts]
-torchpdlp = "torchpdlp.main:main"
