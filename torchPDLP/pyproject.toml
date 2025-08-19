@@ -13,7 +13,7 @@ authors = [
     {name = "Yifa Yu"}
 ]
 license = {text = "MIT"}
-dependencies = ["numpy", "torch", "time"]
+dependencies = ["numpy", "torch"]
 readme = "README.md"
 keywords = ["optimization", "primal-dual", "linear programming", "PDHG", "torch"]
 urls = {Homepage = "https://github.com/SimplySnap/torchPDLP"}
