@@ -2,11 +2,11 @@ import argparse
 import torch
 import os
 import pandas as pd
-import spectral_casting as fishnet
+import .spectral_casting as fishnet
 import time
-from util import mps_to_standard_form
-from enhancements import preconditioning
-from primal_dual_hybrid_gradient import pdlp_algorithm
+from .util import mps_to_standard_form
+from .enhancements import preconditioning
+from .primal_dual_hybrid_gradient import pdlp_algorithm
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run LP solver with configuration options.')
