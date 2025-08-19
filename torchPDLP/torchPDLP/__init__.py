@@ -1,3 +1,3 @@
-from .main import solve
+from .solve import solve
 
 __all__ = ["solve"]
