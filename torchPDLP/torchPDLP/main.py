@@ -42,7 +42,6 @@ def LPSolver(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_w
       print(f"\nConfiguration:")
       print(f"Instance path: {mps_file_path}")
       print(f"Tolerance: {tol}")
-      print(f"Output path: {output_path}")
       print(f"Time limit: {time_limit} seconds")
       print(f"Max KKT passes: {max_kkt}")
       print(f"Preconditioning: {precondition}")
