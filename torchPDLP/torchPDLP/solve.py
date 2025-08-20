@@ -31,13 +31,13 @@ def solve(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weig
     if device == 'auto' or device == 'gpu':
         if torch.cuda.is_available():
             device = torch.device('cuda')
-            print(f"PyTorch is using ROCm/CUDA device: {torch.cuda.get_device_name(0)}")
+            print(f"PyTorch is using ROCm/CUDA device: {torch.cuda.get_device_name(0)}") if verbose else None
         else:
             device = torch.device('cpu')
-            print("ROCm/CUDA not available. PyTorch is using CPU.")
+            print("ROCm/CUDA not available. PyTorch is using CPU.") if verbose else None
     else:
         device = torch.device(device)
-        print(f"PyTorch is using device: {device}")
+        print(f"PyTorch is using device: {device}") if verbose else None
 
     if verbose:
       print(f"\nConfiguration:")
