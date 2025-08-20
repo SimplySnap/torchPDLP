@@ -133,7 +133,7 @@ def main():
                 precondition=precondition, primal_update=primal_weight_update, 
                 adaptive=adaptive_stepsize, data_precond=dt_precond, 
                 infeasibility_detect=infeasibility_detect,
-                time_limit=time_limit, time_used=time_used
+                time_limit=time_limit, time_used=time_used, infeas_tol=min(1e-4, tol)
             )
             print(f"Solver uses {total_time:.4f} seconds.")
             print(f"Status: {status}")
