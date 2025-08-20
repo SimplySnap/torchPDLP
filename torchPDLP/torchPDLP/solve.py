@@ -19,8 +19,8 @@ def solve(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weig
       fishnet: Use fishnet casting for improved warm starting convergence (default False)
       verbose: Output information on the solver (default False)
       support_sparse: Use sparse tensors if they are beneficial (default False)
-      max_kkt: Maximum KKT passes solver will use (default 100000)
-      time_limit: Maximum time in seconds that solver will run (default 3600)
+      max_kkt: Maximum KKT passes solver will use (default None)
+      time_limit: Maximum time in seconds that solver will run (default None)
     Returns:
       minimizer solution to primal LP
       Primal objective value
