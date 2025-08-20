@@ -1,15 +1,17 @@
 # torchPDLP
 
-torchPDLP uses the restarted PDHG algorithm with enhancements to solve primal-dual linear programs efficiently using PyTorch.
+torchPDLP is a PyTorch-based solver for primal-dual linear programs, using a restarted PDHG algorithm with enhancements for stability and performance.
 
 ## Features
-- Implementation of restarted PDHG algorithm
-- Enhancements for stability and performance
-- Leverages PyTorch for fast computation
+
+- Efficient primal-dual LP solving with PyTorch acceleration
+- Directory and single-file solving modes
+- Outputs results and solver status in accessible formats
+- Enhanced algorithmic stability and speed
 
 ## Installation
 
-Once released on PyPI:
+Install from PyPI:
 ```bash
 pip install torchPDLP
 ```
@@ -21,11 +23,59 @@ pip install git+https://github.com/SimplySnap/torchPDLP.git@pypi-package#subdire
 
 ## Usage
 
+### 1. Solving a Directory of Problems from Command Line
+
+You can use the provided command-line script to solve all MPS files in a directory and output a summary CSV file:
+
+```bash
+torchPDLP \
+  --device gpu \
+  --instance_path /path/to/mps/files \
+  --tolerance 1e-4 \
+  --output_path /path/to/save/results \
+  --precondition \
+  --fishnet \
+  --primal_weight_update \
+  --adaptive_stepsize \
+  --max_kkt 100000
+```
+ Argument Reference
+
+| Argument                 | Description                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `--device`               | `'cpu'`, `'gpu'`, or `'auto'`. Uses GPU if available as default.             |
+| `--instance_path`        | Path to folder with `.mps` files.                                            |
+| `--tolerance`            | Convergence tolerance (default: `1e-4`).                                     |
+| `--output_path`          | Folder to save outputs and Excel results.                                    |
+| `--precondition`         | Enable Ruiz preconditioning (optional).                                      |
+| `--primal_weight_update` | Enable primal weight updates (optional).                                     |
+| `--adaptive_stepsize`    | Enable adaptive step sizes (optional).                                       |
+| `--fishnet`              | Enable fishnet casting (optional).                                           |
+| `--verbose`              | Enable verbose logging (optional).                                           |
+| `--support_sparse`       | Use sparse matrices if supported (optional).                                 |
+| `--max_kkt`              | Maximum number of KKT passes (default: `None`).                              |
+
+### 2. Solving a Single Problem in Python
+
+To solve a single MPS problem file and retrieve the solution, objective value, and solver status:
+
 ```python
 import torchPDLP
 
-# Example usage here (update with actual usage)
+# Solve a single problem file
+result = torchPDLP.solve("path/to/file.mps")
+
+# result is a dictionary with keys:
+#   'optimal_point': optimal solution (torch tensor)
+#   'objective_value': value of the objective function at the optimal point
+#   'status': either "solved" or "unsolved"
+
+print("Optimal point:", result['optimal_point'])
+print("Objective value:", result['objective_value'])
+print("Status:", result['status'])
 ```
+
+
 
 ## Authors
 
