@@ -39,21 +39,22 @@ torchPDLP \
   --adaptive_stepsize \
   --max_kkt 100000
 ```
- Argument Reference:
-
+Argument Reference:
 | Argument                 | Description                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------- |
 | `--device`               | `'cpu'`, `'gpu'`, or `'auto'`. Uses GPU if available as default.             |
-| `--instance_path`        | Path to folder with `.mps` files.                                            |
+| `--instance_path`        | Path to folder with `.mps` files (default: `'feasible'`).                   |
 | `--tolerance`            | Convergence tolerance (default: `1e-4`).                                     |
-| `--output_path`          | Folder to save outputs and Excel results.                                    |
+| `--output_path`          | Folder to save outputs and Excel results (default: `'output'`).             |
 | `--precondition`         | Enable Ruiz preconditioning (optional).                                      |
 | `--primal_weight_update` | Enable primal weight updates (optional).                                     |
-| `--adaptive_stepsize`    | Enable adaptive step sizes (optional).                                       |
-| `--fishnet`              | Enable fishnet casting (optional).                                           |
+| `--adaptive_stepsize`    | Enable adaptive step sizes for PDLP (optional).                             |
+| `--infeasibility_detect` | Enable infeasibility detection (optional).                                   |
+| `--fishnet`              | Use fishnet algorithm for better starting point (optional).                 |
 | `--verbose`              | Enable verbose logging (optional).                                           |
-| `--support_sparse`       | Use sparse matrices if supported (optional).                                 |
+| `--support_sparse`       | Use sparse matrices operations if supported (optional).                     |
 | `--max_kkt`              | Maximum number of KKT passes (default: `None`).                              |
+| `--time_limit`           | Time limit for the solver in seconds (default: `None`).                     |
 
 ### 2. Solving a Single Problem in Python
 
