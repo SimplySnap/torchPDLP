@@ -22,9 +22,7 @@ def solve(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weig
       max_kkt: Maximum KKT passes solver will use (default None)
       time_limit: Maximum time in seconds that solver will run (default None)
     Returns:
-      minimizer solution to primal LP
-      Primal objective value
-      Status of solver (Solved, Unsolved)
+      Dictionary with keys 'objective_value', 'status', 'time', 'iterations', 'restarts', 'kkt_passes', and 'optimal_point'
     '''
     
     # --- Device Selection ---
