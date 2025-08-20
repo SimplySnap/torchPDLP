@@ -2,7 +2,8 @@ import argparse
 import torch
 import os
 import pandas as pd
-import torchPDLP.spectral_casting as fishnet
+from .spectral_casting import spectral_cast
+
 import time
 from .util import mps_to_standard_form
 from .enhancements import preconditioning
@@ -114,7 +115,7 @@ def main():
             if args.fishnet:
                 fishnet_time = 0.0 #  For time tracking
                 fishnet_start = time.time()
-                x0, y0 = fishnet.spectral_cast(
+                x0, y0 = spectral_cast(
                 K, c, q, l, u, m_ineq, k=32,  # your choice of hyperparameters
                 device=device
             )
