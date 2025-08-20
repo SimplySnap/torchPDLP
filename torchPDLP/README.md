@@ -39,6 +39,7 @@ torchPDLP \
   --adaptive_stepsize \
   --max_kkt 100000
 ```
+torchPDLP.solve has all the same optional arguments as the command line function.
  Argument Reference:
 
 | Argument                 | Description                                                                  |
