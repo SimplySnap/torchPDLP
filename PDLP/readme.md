@@ -23,4 +23,4 @@ python -u /path/to/main.py \
 | `--adaptive_stepsize`    | Enable adaptive step sizes (optional).                                       |
 | `--verbose`              | Enable verbose logging (optional).                                           |
 | `--support_sparse`       | Use sparse matrices if supported (optional).                                 |
-| `--max_kkt`              | Maximum number of KKT passes (default: `100000`).                                     |
+| `--max_kkt`              | Maximum number of KKT passes (default: `100000`).                            |
