@@ -20,4 +20,4 @@ urls = {Homepage = "https://github.com/SimplySnap/torchPDLP"}
 requires-python = ">=3.6"
 
 [project.scripts]
-torchpdlp = "torchPDLP.main:main"
+torchpdlp = "torchPDLP.main"
