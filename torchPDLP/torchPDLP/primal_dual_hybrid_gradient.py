@@ -7,9 +7,9 @@ from .enhancements import primal_weight_update, detect_infeasibility
 def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=None, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None, infeasibility_detect=False, infeas_tol=1e-4, time_limit=None, time_used=0,x_init=None, y_init=None):
 
     if max_kkt == None:
-        max_kkt = float(inf)
+        max_kkt = float("inf")
     if time_limit == None:
-        time_limit = float(inf)
+        time_limit = float("inf")
         
     algorithm_start_time = time.time()
     
