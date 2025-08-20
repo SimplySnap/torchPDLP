@@ -4,8 +4,13 @@ from .primal_dual_hybrid_gradient_step import adaptive_one_step_pdhg, fixed_one_
 from .helpers import spectral_norm_estimate_torch, KKT_error, compute_residuals_and_duality_gap, check_termination, project_lambda_box
 from .enhancements import primal_weight_update, detect_infeasibility
 
-def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=100_000, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None, infeasibility_detect=False, infeas_tol=1e-4, time_limit=3600, time_used=0,x_init=None, y_init=None):
-    
+def pdlp_algorithm(K, m_ineq, c, q, l, u, device, max_kkt=None, tol=1e-4, verbose=True, restart_period=40, precondition=False, primal_update=False, adaptive=False, data_precond=None, infeasibility_detect=False, infeas_tol=1e-4, time_limit=None, time_used=0,x_init=None, y_init=None):
+
+    if max_kkt == None:
+        max_kkt = float(inf)
+    if time_limit == None:
+        time_limit = float(inf)
+        
     algorithm_start_time = time.time()
     
     is_neg_inf = torch.isinf(l) & (l < 0)
