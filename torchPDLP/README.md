@@ -80,10 +80,10 @@ Result is a dictionary with keys:
 
 ## Authors
 
-- Xiyan Hu
-- Titus Parker
-- Connor Phillips
-- Yifa Yu
+- Xiyan Hu, Colgate University
+- Titus Parker, Stanford University
+- Connor Phillips, James Madison University
+- Yifa Yu, University of California, Davis
 
 ## License
 
