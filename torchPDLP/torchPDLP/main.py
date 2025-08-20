@@ -2,7 +2,7 @@ import argparse
 import torch
 import os
 import pandas as pd
-import .spectral_casting as fishnet
+import torchPDLP.spectral_casting as fishnet
 import time
 from .util import mps_to_standard_form
 from .enhancements import preconditioning
