@@ -43,7 +43,7 @@ def solve(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weig
       print(f"\nConfiguration:")
       print(f"Instance path: {mps_file_path}")
       print(f"Tolerance: {tol}")
-      print(f"Time limit: {time_limit} seconds")
+      print(f"Time limit: {time_limit}{' seconds' if time_limit is not None else ''}")
       print(f"Max KKT passes: {max_kkt}")
       print(f"Preconditioning: {precondition}")
       print(f"Primal weight update: {primal_weight_update}")
