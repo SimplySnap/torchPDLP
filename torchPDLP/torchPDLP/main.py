@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument('--fishnet', action='store_true',help="Use fishnet alg for better startpoint",default=False)
     return parser.parse_args()
 
-if __name__ == '__main__':
+def main():
     args = parse_args()
 
     # --- Device Selection ---
