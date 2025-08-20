@@ -56,6 +56,16 @@ def solve(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weig
         c, K, q, m_ineq, l, u= mps_to_standard_form(mps_file_path, device=device, support_sparse=support_sparse, verbose=verbose)
     except Exception as e:
         print(f"Failed to load MPS file: {mps_file_path}. Error: {e}")
+        result = {
+            'optimal_point': "N/A",
+            'objective_value': "N/A",
+            'status': "Unsolved(Load Error)",
+            'time': "N/A",
+            'iterations': "N/A",
+            'restarts': "N/A",
+            'kkt_passes': "N/A"
+        }
+        return result
 
     
     try:
@@ -84,7 +94,26 @@ def solve(mps_file_path, tol=1e-4, device='auto', precondition=True, primal_weig
           print("\nMinimizer (first 10 variables):")
           print(x[:10].cpu().numpy())
         
-        return x, prim_obj, status
+        result = {
+            'optimal_point': x,
+            'objective_value': prim_obj,
+            'status': status,
+            'time': total_time,
+            'iterations': k,
+            'restarts': n,
+            'kkt_passes': j
+        }
+        return result
         
     except Exception as e:
         print(f"Solver Error: {e}")
+        result = {
+            'optimal_point': "N/A",
+            'objective_value': "N/A",
+            'status': "Unsolved(Solver Error)",
+            'time': "N/A",
+            'iterations': "N/A",
+            'restarts': "N/A",
+            'kkt_passes': "N/A"
+        }
+        return result
