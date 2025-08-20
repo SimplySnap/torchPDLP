@@ -32,10 +32,10 @@ def parse_args():
                         help="Enable verbose output (default: False)")
     parser.add_argument('--support_sparse', action='store_true',
                         help="Support sparse matrices operations(default: False)")
-    parser.add_argument('--max_kkt', type=int, default=100_000,
-                        help="Maximum number of KKT passes (default: 100000)")
-    parser.add_argument('--time_limit', type=int, default=3600,
-                        help="Time limit for the solver in seconds (default: 3600)")
+    parser.add_argument('--max_kkt', type=int, default=None,
+                        help="Maximum number of KKT passes (default: None)")
+    parser.add_argument('--time_limit', type=int, default=None,
+                        help="Time limit for the solver in seconds (default: None)")
     parser.add_argument('--fishnet', action='store_true',help="Use fishnet alg for better startpoint",default=False)
     return parser.parse_args()
 
