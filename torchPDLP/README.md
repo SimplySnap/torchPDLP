@@ -1,6 +1,6 @@
 # torchPDLP
 
-torchPDLP is a PyTorch-based solver for primal-dual linear programs, using a restarted PDHG algorithm with enhancements for stability and performance.
+torchPDLP is a PyTorch-based solver for linear programs, using a restarted PDHG algorithm with enhancements for stability and performance.
 
 ## Features
 
