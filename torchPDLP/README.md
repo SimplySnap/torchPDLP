@@ -62,12 +62,7 @@ To solve a single MPS problem file and retrieve the solution, objective value, a
 ```python
 import torchPDLP
 
-# Solve a single problem file
 result = torchPDLP.solve("path/to/file.mps")
-
-print("Optimal point:", result['optimal_point'])
-print("Objective value:", result['objective_value'])
-print("Status:", result['status'])
 ```
 Result is a dictionary with keys:
 
