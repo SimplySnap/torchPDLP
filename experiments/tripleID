@@ -229,127 +229,90 @@ def pdlp_algorithm_ID(K, m_ineq, c, q, l, u, device, max_iter=100_000, tol=1e-4,
 
 
 def setup_primal_infeasibility_certificate(G, A, h, b, l, u, device='cpu'):
-    """
-    Set up the primal infeasibility certificate problem
-    minimize - (h^T y_ineq + b^T y_eq - l^T y_lambda^- - u^T y_lambda^+)
-    subject to G^T y_ineq + A^T y_eq = y_lambda
-               y_ineq >= 0
-    """
     m_ineq = G.shape[0] if G.numel() > 0 else 0
     m_eq = A.shape[0] if A.numel() > 0 else 0
     n = G.shape[1] if G.numel() > 0 else A.shape[1]
 
-    # Identify infinite bounds
-    l_is_inf = torch.isinf(l) & (l < 0)  # Negative infinity
-    u_is_inf = torch.isinf(u) & (u > 0)  # Positive infinity
-    
-    # Build objective function coefficients
-    # - (h^T y_ineq + b^T y_eq - l^T y_lambda^- - u^T y_lambda^+)
-    # For infinite bounds, the corresponding terms should be zero
+    l_is_inf = torch.isinf(l) & (l < 0)  
+    u_is_inf = torch.isinf(u) & (u > 0)  
+
     c_cert = torch.cat([
         -h.flatten(), 
         -b.flatten(), 
-        torch.where(l_is_inf, torch.zeros_like(l), l).flatten(),  # Zero for infinite bounds
-        torch.where(u_is_inf, torch.zeros_like(u), u).flatten()   # Zero for infinite bounds
+        torch.where(l_is_inf, torch.zeros_like(l), l).flatten(), 
+        torch.where(u_is_inf, torch.zeros_like(u), u).flatten()   
     ], dim=0)
-    c_cert = c_cert.view(-1, 1)  # Ensure it's a column vector
+    c_cert = c_cert.view(-1, 1) 
 
-    # Build constraint matrix
-    # Constraint: G^T y_ineq + A^T y_eq - (y_lambda^+ - y_lambda^-) = 0
     K_cert = torch.zeros((n, m_ineq + m_eq + 2*n), device=device)
 
     if m_ineq > 0:
         K_cert[:, :m_ineq] = G.t()
     if m_eq > 0:
         K_cert[:, m_ineq:m_ineq+m_eq] = A.t()
-    K_cert[:, m_ineq+m_eq:m_ineq+m_eq+n] = -torch.eye(n, device=device)  # -y_lambda^+
-    K_cert[:, m_ineq+m_eq+n:] = torch.eye(n, device=device)  # +y_lambda^- (since -(-y_lambda^-) = +y_lambda^-)
+    K_cert[:, m_ineq+m_eq:m_ineq+m_eq+n] = -torch.eye(n, device=device)
+    K_cert[:, m_ineq+m_eq+n:] = torch.eye(n, device=device) 
 
-    # Build constraint right-hand side
     q_cert = torch.zeros((n, 1), device=device)
 
-    # Build variable bounds
-    # y_ineq ≥ 0, y_eq unconstrained, y_lambda^+ ≥ 0, y_lambda^- ≥ 0
-    # For infinite bounds, the corresponding multipliers must be zero
     l_cert = torch.cat([
-        torch.zeros((m_ineq, 1), device=device),  # y_ineq ≥ 0
-        -torch.inf * torch.ones((m_eq, 1), device=device),  # y_eq unconstrained
-        torch.where(u_is_inf, torch.zeros_like(u), torch.zeros_like(u)),  # y_lambda^+ ≥ 0
-        torch.where(l_is_inf, torch.zeros_like(l), torch.zeros_like(l))   # y_lambda^- ≥ 0
+        torch.zeros((m_ineq, 1), device=device), 
+        -torch.inf * torch.ones((m_eq, 1), device=device),  
+        torch.where(u_is_inf, torch.zeros_like(u), torch.zeros_like(u)), 
+        torch.where(l_is_inf, torch.zeros_like(l), torch.zeros_like(l))   
     ], dim=0)
 
     u_cert = torch.cat([
-        torch.inf * torch.ones((m_ineq, 1), device=device),  # y_ineq no upper bound
-        torch.inf * torch.ones((m_eq, 1), device=device),  # y_eq no upper bound
-        torch.where(u_is_inf, torch.zeros_like(u), torch.inf * torch.ones_like(u)),  # y_lambda^+ no upper bound, zero for infinite bounds
-        torch.where(l_is_inf, torch.zeros_like(l), torch.inf * torch.ones_like(l))   # y_lambda^- no upper bound, zero for infinite bounds
+        torch.inf * torch.ones((m_ineq, 1), device=device),
+        torch.inf * torch.ones((m_eq, 1), device=device), 
+        torch.where(u_is_inf, torch.zeros_like(u), torch.inf * torch.ones_like(u)), 
+        torch.where(l_is_inf, torch.zeros_like(l), torch.inf * torch.ones_like(l))  
     ], dim=0)
 
     return c_cert, K_cert, q_cert, l_cert, u_cert
 
 def setup_dual_infeasibility_certificate(G, A, c, l, u, device='cpu'):
-    """
-    Set up the dual infeasibility certificate problem
-    minimize (c^T)x
-    subject to Gx ≥ 0
-               Ax = 0
-               x_i ∈ V_i
-    where V_i depends on the bounds of x_i
-    """
+
     m_ineq = G.shape[0] if G.numel() > 0 else 0
     m_eq = A.shape[0] if A.numel() > 0 else 0
     n = c.shape[0]
 
-    # Objective function coefficients (minimize c^T x)
     c_cert = c.clone()
 
-    # Build constraint matrix and right-hand side
-    # Constraints: Gx ≥ 0, Ax = 0
     K_cert = torch.cat([G, A], dim=0) if m_ineq > 0 or m_eq > 0 else torch.zeros((0, n), device=device)
     q_cert = torch.zeros((m_ineq + m_eq, 1), device=device)
 
-    # Set feasible region V_i for each x_i based on bound conditions
     l_cert = torch.zeros_like(l)
     u_cert = torch.zeros_like(u)
 
     for i in range(n):
-        # Check for infinite values using torch.isinf
         l_is_neg_inf = torch.isinf(l[i]) and l[i] < 0
         u_is_pos_inf = torch.isinf(u[i]) and u[i] > 0
 
         if l_is_neg_inf and u_is_pos_inf:
-            # V_i = ℝ (unconstrained)
             l_cert[i] = -torch.inf
             u_cert[i] = torch.inf
         elif l_is_neg_inf and not u_is_pos_inf:
-            # V_i = ℝ⁻ (non-positive)
             l_cert[i] = -torch.inf
             u_cert[i] = 0.0
         elif not l_is_neg_inf and u_is_pos_inf:
-            # V_i = ℝ⁺ (non-negative)
             l_cert[i] = 0.0
             u_cert[i] = torch.inf
         else:
-            # V_i = {0}
             l_cert[i] = 0.0
             u_cert[i] = 0.0
 
     return c_cert, K_cert, q_cert, l_cert, u_cert, m_ineq
 
 def check_infeasibility_certificates(G, A, h, b, c, l, u, device, tol=1e-2):
-    """
-    Check for primal and dual infeasibility certificates
-    """
     print("Checking infeasibility certificates...")
     
-    # Check primal infeasibility
     try:
         print("Setting up primal infeasibility certificate...")
         c_primal, K_primal, q_primal, l_primal, u_primal = setup_primal_infeasibility_certificate(
             G, A, h, b, l, u, device
         )
         
-        # Check if the certificate problem is valid
         if torch.any(torch.isnan(c_primal)) or torch.any(torch.isinf(c_primal)):
             print("Primal certificate problem has NaN or Inf values in objective")
             return False, False, 0, 0
@@ -359,13 +322,11 @@ def check_infeasibility_certificates(G, A, h, b, c, l, u, device, tol=1e-2):
             c_primal, K_primal, q_primal, l_primal, u_primal, 0, device, tol=tol
         )
 
-        # Check dual infeasibility
         print("Setting up dual infeasibility certificate...")
         c_dual, K_dual, q_dual, l_dual, u_dual, m_ineq_dual = setup_dual_infeasibility_certificate(
             G, A, c, l, u, device
         )
         
-        # Check if the certificate problem is valid
         if torch.any(torch.isnan(c_dual)) or torch.any(torch.isinf(c_dual)):
             print("Dual certificate problem has NaN or Inf values in objective")
             return False, False, 0, 0
@@ -375,10 +336,8 @@ def check_infeasibility_certificates(G, A, h, b, c, l, u, device, tol=1e-2):
             c_dual, K_dual, q_dual, l_dual, u_dual, m_ineq_dual, device, tol=tol
         )
 
-        # Primal infeasibility condition: objective value < tol
         primal_infeasible = primal_obj < tol
 
-        # Dual infeasibility condition: objective value < -tol
         dual_infeasible = dual_obj < -tol
         
         print(f"Primal certificate objective: {primal_obj}")
@@ -389,24 +348,18 @@ def check_infeasibility_certificates(G, A, h, b, c, l, u, device, tol=1e-2):
         return primal_infeasible, dual_infeasible, primal_obj, dual_obj
         
     except Exception as e:
-        # If certificate problem solving fails, assume the problem is feasible
         print(f"Certificate problem failed: {e}")
         import traceback
         traceback.print_exc()
         return False, False, 0, 0
 
-def solve_certificate_problem(c, K, q, l, u, m_ineq, device, max_iter=1000000, tol=1e-2):
-    """
-    Solve the certificate problem using pdlp_algorithm_ID with increased iterations and tolerance
-    """
+def solve_certificate_problem(c, K, q, l, u, m_ineq, device, max_iter=1000, tol=1e-2):
     try:
-        # Add detailed debugging information
         print(f"Certificate problem dimensions: c={c.shape}, K={K.shape}, q={q.shape}")
         print(f"Bounds: l={l.shape}, u={u.shape}, m_ineq={m_ineq}")
         print(f"c range: [{c.min().item()}, {c.max().item()}]")
         print(f"K range: [{K.min().item()}, {K.max().item()}]")
         
-        # Call pdlp_algorithm_ID to solve the certificate problem with increased iterations and tolerance
         result = pdlp_algorithm_ID(
             K, m_ineq, c, q, l, u, device, 
             max_iter=max_iter, tol=tol, verbose=True,
@@ -414,7 +367,6 @@ def solve_certificate_problem(c, K, q, l, u, m_ineq, device, max_iter=1000000, t
             primal_update=False, adaptive=False, data_precond=None
         )
         
-        # Check return value
         if len(result) == 5:
             x, prim_obj, k, n, j = result
             return prim_obj, x
@@ -423,7 +375,6 @@ def solve_certificate_problem(c, K, q, l, u, m_ineq, device, max_iter=1000000, t
             return float('inf'), torch.zeros_like(c)
             
     except Exception as e:
-        # If solving fails, return a default value
         print(f"Certificate problem solving failed: {e}")
         import traceback
         traceback.print_exc()
