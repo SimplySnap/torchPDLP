@@ -39,7 +39,7 @@ torchPDLP \
   --adaptive_stepsize \
   --max_kkt 100000
 ```
- Argument Reference
+ Argument Reference:
 
 | Argument                 | Description                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------- |
@@ -65,16 +65,21 @@ import torchPDLP
 # Solve a single problem file
 result = torchPDLP.solve("path/to/file.mps")
 
-# result is a dictionary with keys:
-#   'optimal_point': optimal solution (torch tensor)
-#   'objective_value': value of the objective function at the optimal point
-#   'status': either "solved" or "unsolved"
-
 print("Optimal point:", result['optimal_point'])
 print("Objective value:", result['objective_value'])
 print("Status:", result['status'])
 ```
+Result is a dictionary with keys:
 
+| Key               | Description                                                                                   |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| `optimal_point`   | The optimal solution found by the solver (PyTorch tensor).                                    |
+| `objective_value` | The value of the objective function at the optimal point (float).                             |
+| `status`          | Solver status, either `"solved"` or `"unsolved"` (string).                                    |
+| `time`            | Total time taken to solve the problem (in seconds, float).                                    |
+| `iterations`      | Number of main algorithm iterations performed (integer).                                      |
+| `restarts`        | Number of times the PDHG algorithm was restarted (integer).                                   |
+| `kkt_passes`      | Number of KKT passes performed during solving (integer).                                      |
 
 
 ## Authors
