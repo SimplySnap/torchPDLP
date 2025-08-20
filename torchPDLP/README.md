@@ -39,7 +39,6 @@ torchPDLP \
   --adaptive_stepsize \
   --max_kkt 100000
 ```
-torchPDLP.solve has all the same optional arguments as the command line function.
  Argument Reference:
 
 | Argument                 | Description                                                                  |
@@ -65,6 +64,7 @@ import torchPDLP
 
 result = torchPDLP.solve("path/to/file.mps")
 ```
+torchPDLP.solve has all the same optional arguments as the command line function.
 Result is a dictionary with keys:
 
 | Key               | Description                                                                                   |
