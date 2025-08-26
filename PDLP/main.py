@@ -167,16 +167,8 @@ if __name__ == '__main__':
     # Save results to Excel file
     if results:
         df = pd.DataFrame(results)
-        excel_filename = os.path.join(output_path, 'solver_results.xlsx')
-        
-        try:
-            df.to_excel(excel_filename, index=False, engine='openpyxl')
-                
-        except Exception as e:
-            print(f"Failed to save Excel file: {e}")
-            # Fallback to CSV if Excel fails
-            csv_filename = os.path.join(output_path, 'solver_results.csv')
-            df.to_csv(csv_filename, index=False)
-            print(f"Results saved to CSV instead: {csv_filename}")
+        csv_filename = os.path.join(output_path, 'solver_results.csv')
+        df.to_csv(csv_filename, index=False)
+        print(f"Results saved to CSV instead: {csv_filename}")
     else:
         print("No results to save.")
