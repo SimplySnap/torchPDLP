@@ -9,6 +9,7 @@ python -u /path/to/main.py \
   --primal_weight_update \
   --adaptive_stepsize \
   --max_kkt 100000
+  --fishnet \
 ```
 ## Argument Reference
 
@@ -24,3 +25,4 @@ python -u /path/to/main.py \
 | `--verbose`              | Enable verbose logging (optional).                                           |
 | `--support_sparse`       | Use sparse matrices if supported (optional).                                 |
 | `--max_kkt`              | Maximum number of KKT passes (default: `100000`).                            |
+| `--fishnet`              | Use fishnet casting for start-point optimization (optional)                  |
