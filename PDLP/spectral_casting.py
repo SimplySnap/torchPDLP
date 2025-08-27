@@ -28,6 +28,38 @@ def spectral_cast(K,c,q,l,u,m_ineq,k,s=2,i=5,device="cpu"):
 
     return start_x, start_y
 
+def sample_points_better(K,i,l,u,device="cpu"):
+    '''
+    Generates 2^i random points on n-dim ball. n is column in K, ball's construction is as follows:
+    
+    1. Get the max finite entry of u-l and set this scalar to h
+    2. Set radius to h/2 * sqrt(2) TODO check if this scales to many dimensions
+    3. Get the centre
+        a. For entires i in u unbounded, set corresponding center to spectral norm + l[i]
+        b. For other entries bounded, set corresponding center to (h/2)^n
+    This is guaranteed to 'capture' the feasible region in a fairly-tight ball for l,u bounded (definitely in the 2d case)
+    
+    Args:
+        K (torch.Tensor): Constraint matrix.
+        i (int): Exponent for the number of points to generate (2^i points).
+        device (str, optional): Device to use. Default "cpu".
+        l (torch.Tensor): Lower primal variable bound tensor
+        u (torch.Tensor): Upper primal variable bound tensor
+
+    Returns:
+        tuple[torch.Tensor, float]: A matrix of points (each column is a point),
+                                    and the spectral radius (ball radius).
+
+    '''
+
+    r = spectral_norm_estimate_torch(K,25) #  25 because we want a tight ball, pause
+    dim = K.shape[1] #Get num columns for casting
+    j = 2**i #Number of points based on i
+
+    points = torch.randn(size=(dim,j),device=device) #  j points, each of length dim in primal-space
+
+    #  Get max l,u and unbounded indices
+
 
 def sample_points(K,i,device="cpu"):
     '''
