@@ -23,7 +23,8 @@ def spectral_cast(K,c,q,l,u,m_ineq,k,s=2,i=5,device="cpu"):
     Returns:
         tuple[torch.Tensor, torch.Tensor]: x, y — promising primal and dual starting points.
     '''
-    pts, _ = sample_points(K,i,device) #  Cast points randomly around primal-ball
+    pts, _ = sample_points_better(K,i,l,u,device) #  Cast points randomly around primal-ball
+    #pts,_ = sample_points(K,i,device)
     start_x, start_y = fishnet(pts,K,c,q,l,u,m_ineq,s,k,device)
 
     return start_x, start_y
@@ -62,9 +63,11 @@ def sample_points_better(K,i,l,u,device="cpu"):
     is_neg_inf = torch.isinf(l) & (l < 0)
 
     #  Calculate max finite entry of u-l
-    finite_diffs = u[~is_pos_inf] - l[~is_neg_inf]
+    finite_mask = (~is_pos_inf) & (~is_neg_inf)
+    finite_diffs = u[finite_mask] - l[finite_mask]
     if finite_diffs.numel() == 0:
         h = spec_norm #  if all entries unbounded we're lowkey cooked
+        h_index = 0 #  arbitrary index
     else:
         h = torch.max(finite_diffs)
         #  Get index of h
@@ -80,7 +83,6 @@ def sample_points_better(K,i,l,u,device="cpu"):
         r = (h / 2)
         #  Get radius for unbounded entries - use max bound as scaling factor
         e_i = torch.eye(dim, device=device)[:, h_index].unsqueeze(1)  # shape: (n, 1)
-
         r_unbdd = r * spec_norm / torch.norm(K @ e_i,2)
     else:
         r = r_unbdd = spec_norm #  Default to spectral norm
@@ -89,19 +91,27 @@ def sample_points_better(K,i,l,u,device="cpu"):
     #------------ 3. Cast points -------------
     #  Get centre
     centre = torch.zeros((dim, 1), device=device)
-    centre[is_pos_inf] = r + l[is_pos_inf].view(-1, 1) #  Set centre for unbdd above entries
+    centre[is_pos_inf] = r + l[is_pos_inf] #  Set centre for unbdd above entries
     centre[~is_pos_inf] = r / (dim**0.5) #  Set centre for bdd entries 
+
 
     #---- Radius Tensor/Mask Creation ----
     #  Set radius_tensor to r_unbdd for unbounded entries, r for bounded entries
-    radius_tensor = torch.where(is_pos_inf, r_unbdd, r)  # shape: (dim,)
+    radius_tensor = torch.where(is_pos_inf, r_unbdd, r)  # shape: (dim,j)
     #  Expand radius_tensor to match points for broadcasting
-    radius_tensor = radius_tensor.unsqueeze(1).expand(-1,j)
+    radius_tensor = radius_tensor.expand(-1,j)
 
     #  Cast points on unit n-sphere, then project outwards
     points = torch.randn(size=(dim,j),device=device) #  j points, each of length dim in primal-space
     points = points * radius_tensor / torch.norm(points, dim=0, keepdim=True)
     points += centre #  Translate to centre after scaling
+
+    #  Add zero vector as well!!! [New]
+    zero_vec = torch.zeros((dim,1), device=device)
+    #  Remove one random point to keep number of points 2^i
+    points = torch.cat((points, zero_vec), dim=1)
+    rand_index = np.random.randint(0, points.shape[1]-1) #
+    points = torch.cat((points[:,:rand_index], points[:,rand_index+1:]), dim=1)
 
     return points, None #  Return vector of primal points, and radius
 

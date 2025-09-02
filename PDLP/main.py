@@ -1,6 +1,7 @@
 import argparse
 import torch
 import os
+import time
 import pandas as pd
 from util import mps_to_standard_form
 from enhancements import ruiz_precondition
@@ -105,7 +106,7 @@ if __name__ == '__main__':
                 dt_precond = None
             
             #  FISHNET starting point optimimzation
-            fishnet_time = 0.0
+            fishnet_start = time.time()
             if args.fishnet:
                 x0, y0 = fishnet.spectral_cast(
                 K, c, q, l, u, m_ineq, k=32,  # your choice of hyperparameters
