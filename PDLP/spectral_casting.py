@@ -23,7 +23,7 @@ def spectral_cast(K,c,q,l,u,m_ineq,k,s=2,i=5,device="cpu"):
     Returns:
         tuple[torch.Tensor, torch.Tensor]: x, y — promising primal and dual starting points.
     '''
-    pts, radius = sample_points(K,i,device) #  Cast points randomly around primal-ball
+    pts, _ = sample_points(K,i,device) #  Cast points randomly around primal-ball
     start_x, start_y = fishnet(pts,K,c,q,l,u,m_ineq,s,k,device)
 
     return start_x, start_y
@@ -37,7 +37,7 @@ def sample_points_better(K,i,l,u,device="cpu"):
     3. Get the centre
         a. For entires i in u unbounded, set corresponding center to spectral norm + l[i]
         b. For other entries bounded, set corresponding center to (h/2)^n
-    This is guaranteed to 'capture' the feasible region in a fairly-tight ball for l,u bounded (definitely in the 2d case)
+    This is a better heuristic to 'capture' the feasible region in a fairly-tight ball for l,u bounded
     
     Args:
         K (torch.Tensor): Constraint matrix.
@@ -47,18 +47,63 @@ def sample_points_better(K,i,l,u,device="cpu"):
         u (torch.Tensor): Upper primal variable bound tensor
 
     Returns:
-        tuple[torch.Tensor, float]: A matrix of points (each column is a point),
-                                    and the spectral radius (ball radius).
+        tuple[torch.Tensor, float]: A matrix of points (each column is a point)
 
     '''
 
-    r = spectral_norm_estimate_torch(K,25) #  25 because we want a tight ball, pause
+    spec_norm = spectral_norm_estimate_torch(K,25) #  25 because we want a tight ball, pause
     dim = K.shape[1] #Get num columns for casting
     j = 2**i #Number of points based on i
 
     points = torch.randn(size=(dim,j),device=device) #  j points, each of length dim in primal-space
+    #------------ Setting h ------------
+    #  Get tensor mask of u, where u is +infinity
+    is_pos_inf = torch.isinf(u) & (u > 0)
+    is_neg_inf = torch.isinf(l) & (l < 0)
 
-    #  Get max l,u and unbounded indices
+    #  Calculate max finite entry of u-l
+    finite_diffs = u[~is_pos_inf] - l[~is_neg_inf]
+    if finite_diffs.numel() == 0:
+        h = spec_norm #  if all entries unbounded we're lowkey cooked
+    else:
+        h = torch.max(finite_diffs)
+        #  Get index of h
+        h_index = torch.argmax(finite_diffs)
+    
+    #------------ 2. Setting radius -------------
+    #  Now, we calculate the radius for unbounded entries: the logic is
+    #  we scale how the max bounded entry by the spectral norm,
+    #  so unbounded entries are bounded by a value combining
+    #  information from the max bounded entry and the spectral norm
+    #  NB the spectral norm is related to the 'max stretching direction' of K
+    if h > 0:
+        r = (h / 2)
+        #  Get radius for unbounded entries - use max bound as scaling factor
+        e_i = torch.eye(dim, device=device)[:, h_index].unsqueeze(1)  # shape: (n, 1)
+
+        r_unbdd = r * spec_norm / torch.norm(K @ e_i,2)
+    else:
+        r = r_unbdd = spec_norm #  Default to spectral norm
+
+
+    #------------ 3. Cast points -------------
+    #  Get centre
+    centre = torch.zeros((dim, 1), device=device)
+    centre[is_pos_inf] = r + l[is_pos_inf].view(-1, 1) #  Set centre for unbdd above entries
+    centre[~is_pos_inf] = r / (dim**0.5) #  Set centre for bdd entries 
+
+    #---- Radius Tensor/Mask Creation ----
+    #  Set radius_tensor to r_unbdd for unbounded entries, r for bounded entries
+    radius_tensor = torch.where(is_pos_inf, r_unbdd, r)  # shape: (dim,)
+    #  Expand radius_tensor to match points for broadcasting
+    radius_tensor = radius_tensor.unsqueeze(1).expand(-1,j)
+
+    #  Cast points on unit n-sphere, then project outwards
+    points = torch.randn(size=(dim,j),device=device) #  j points, each of length dim in primal-space
+    points = points * radius_tensor / torch.norm(points, dim=0, keepdim=True)
+    points += centre #  Translate to centre after scaling
+
+    return points, None #  Return vector of primal points, and radius
 
 
 def sample_points(K,i,device="cpu"):
